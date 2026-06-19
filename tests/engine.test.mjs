@@ -42,7 +42,7 @@ const analysis = analyzeText(schrodinger, { sourceName: "test" });
 assert.equal(analysis.equationCount, 3);
 assert.equal(analysis.outcome.missingEquation.title, "Formal gap: admissible Hilbert space");
 assert.equal(analysis.outcome.reviewer.verdict, "Needs domain and normalization statement");
-assert.equal(analysis.shareCard.headline, "Find the missing mathematical obligation.");
+assert.equal(analysis.shareCard.headline, "Find the missing equation.");
 assert.ok(analysis.shareCard.nextEquation.includes("\\psi"));
 assert.ok(analysis.shareCard.grammarEvidence.includes("Top grammar continuation"));
 assert.ok(analysis.nextMoves.length > 0);

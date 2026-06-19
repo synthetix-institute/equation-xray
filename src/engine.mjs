@@ -967,7 +967,7 @@ function buildShareCard(nodes, chain, aggregateRoutes, aggregateSubstrates, next
   const substrate = topSubstrateLabels.length
     ? topSubstrateLabels.join(" / ")
     : "substrate not explicit";
-  const missingTitle = outcome?.missingEquation?.title || "Missing mathematical obligation";
+  const missingTitle = outcome?.missingEquation?.title || "Missing equation";
   const obligation = outcome?.missingEquation?.candidateLatex || "";
   const evidence = outcome?.missingEquation?.why || "The equation chain has a detectable formal gap.";
   const grammarEvidence = topMove
@@ -976,7 +976,7 @@ function buildShareCard(nodes, chain, aggregateRoutes, aggregateSubstrates, next
   const equationIds = nodes.map((node) => node.id).join(", ");
   const chainTokens = chain.slice(0, 4).map((move) => move.token).join(" -> ");
   return {
-    headline: "Find the missing mathematical obligation.",
+    headline: "Find the missing equation.",
     title: missingTitle,
     present,
     substrate,
@@ -987,7 +987,7 @@ function buildShareCard(nodes, chain, aggregateRoutes, aggregateSubstrates, next
     sourceTrace: equationIds ? `Detected equation nodes: ${equationIds}.` : "No clean equation nodes detected.",
     chainTrace: chainTokens ? `Observed moves: ${chainTokens}.` : "No adjacent morphism chain detected.",
     falsifier: outcome?.missingEquation?.falsifier || "",
-    scope: "Mathematical obligation, not a claim of physical equivalence."
+    scope: "Formal completion candidate, not a claim of physical equivalence."
   };
 }
 
@@ -1055,7 +1055,7 @@ Present: ${share.present}
 
 Missing: ${share.missing}
 
-Next mathematical obligation:
+Required equation:
 
 \`\`\`latex
 ${share.nextEquation}

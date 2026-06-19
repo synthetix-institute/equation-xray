@@ -200,8 +200,8 @@ function renderShareCard(analysis) {
         <strong>${escapeHtml(share.missing)}</strong>
       </div>
       <div class="card-field">
-        <span>Next mathematical obligation</span>
-        ${obligationPreview(share.nextEquation)}
+        <span>Required equation</span>
+        ${equationPreview(share.nextEquation)}
       </div>
       <div class="card-field evidence-field">
         <span>Evidence</span>
@@ -213,10 +213,8 @@ function renderShareCard(analysis) {
   `;
 }
 
-function obligationPreview(value) {
+function equationPreview(value) {
   const text = String(value || "").trim();
-  const lines = text.split(/\n+/).filter(Boolean);
-  if (lines.length === 1 && text.length < 96) return latexBlock(text, { compact: true });
   return `<pre class="obligation-code">${escapeHtml(text)}</pre>`;
 }
 
@@ -454,7 +452,7 @@ function shareCardText(analysis) {
     `Substrate evidence: ${share.substrate}`,
     `Missing: ${share.missing}`,
     "",
-    "Next mathematical obligation:",
+    "Required equation:",
     share.nextEquation,
     "",
     `Evidence: ${share.evidence}`,
@@ -489,7 +487,7 @@ function buildShareSvg(analysis) {
     ["Present", share.present],
     ["Substrate evidence", share.substrate],
     ["Missing", share.missing],
-    ["Next mathematical obligation", share.nextEquation],
+    ["Required equation", share.nextEquation],
     ["Evidence", `${share.evidence} ${share.grammarEvidence}`],
     ["Scope", share.scope]
   ];
@@ -497,10 +495,10 @@ function buildShareSvg(analysis) {
   const body = rows.map(([label, value]) => {
     const labelY = y;
     y += 36;
-    const lines = wrapText(value, label === "Next mathematical obligation" ? 82 : 94).slice(0, label === "Evidence" ? 4 : 3);
+    const lines = wrapText(value, label === "Required equation" ? 82 : 94).slice(0, label === "Evidence" ? 4 : 3);
     const text = lines.map((line, index) => {
-      const family = label === "Next mathematical obligation" ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : "Inter, system-ui, sans-serif";
-      const size = label === "Next mathematical obligation" ? 25 : 27;
+      const family = label === "Required equation" ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : "Inter, system-ui, sans-serif";
+      const size = label === "Required equation" ? 25 : 27;
       return `<text x="82" y="${y + index * 34}" fill="#171717" font-family="${family}" font-size="${size}" font-weight="${index === 0 && label === "Missing" ? "800" : "500"}">${escapeXml(line)}</text>`;
     }).join("\n");
     y += lines.length * 34 + 28;
