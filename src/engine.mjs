@@ -933,6 +933,7 @@ export function analyzeText(inputText, options = {}) {
   const nextMoves = predictNextMoves(equations, chain, missing);
   const atlasState = inferAtlasState(equations, chain, aggregateRoutes, aggregateSubstrates);
   const outcome = buildOutcome(equations, chain, aggregateRoutes, aggregateSubstrates, inputText);
+  const shareCard = buildShareCard(equations, chain, aggregateRoutes, aggregateSubstrates, nextMoves, outcome);
   const analysis = {
     schema: "equation_xray_v1",
     sourceName: options.sourceName || "pasted input",
@@ -945,10 +946,49 @@ export function analyzeText(inputText, options = {}) {
     nextMoves,
     atlasState,
     outcome,
+    shareCard,
     mechanism: mechanismStatement(equations, aggregateRoutes, aggregateSubstrates)
   };
   analysis.markdown = renderMarkdown(analysis);
   return analysis;
+}
+
+function buildShareCard(nodes, chain, aggregateRoutes, aggregateSubstrates, nextMoves, outcome) {
+  const topRouteLabels = topScores(aggregateRoutes, ROUTES, 3)
+    .filter((item) => item.score > 0)
+    .map((item) => item.label);
+  const topSubstrateLabels = topScores(aggregateSubstrates, SUBSTRATES, 2)
+    .filter((item) => item.score > 0)
+    .map((item) => item.label);
+  const topMove = nextMoves[0] || null;
+  const present = topRouteLabels.length
+    ? topRouteLabels.join(" + ")
+    : "weakly classified equation chain";
+  const substrate = topSubstrateLabels.length
+    ? topSubstrateLabels.join(" / ")
+    : "substrate not explicit";
+  const missingTitle = outcome?.missingEquation?.title || "Missing mathematical obligation";
+  const obligation = outcome?.missingEquation?.candidateLatex || "";
+  const evidence = outcome?.missingEquation?.why || "The equation chain has a detectable formal gap.";
+  const grammarEvidence = topMove
+    ? `Top grammar continuation: ${topMove.token} (${Math.round(topMove.probability * 100)}%).`
+    : "No next grammar move was predicted.";
+  const equationIds = nodes.map((node) => node.id).join(", ");
+  const chainTokens = chain.slice(0, 4).map((move) => move.token).join(" -> ");
+  return {
+    headline: "Find the missing mathematical obligation.",
+    title: missingTitle,
+    present,
+    substrate,
+    missing: missingTitle.replace(/^Missing equation:\s*/i, "").replace(/^Formal gap:\s*/i, ""),
+    nextEquation: obligation,
+    evidence,
+    grammarEvidence,
+    sourceTrace: equationIds ? `Detected equation nodes: ${equationIds}.` : "No clean equation nodes detected.",
+    chainTrace: chainTokens ? `Observed moves: ${chainTokens}.` : "No adjacent morphism chain detected.",
+    falsifier: outcome?.missingEquation?.falsifier || "",
+    scope: "Mathematical obligation, not a claim of physical equivalence."
+  };
 }
 
 export function renderMarkdown(analysis) {
@@ -968,6 +1008,7 @@ export function renderMarkdown(analysis) {
     ? analysis.missingRoles.map((role) => `- ${role.label}: ${role.why}`).join("\n")
     : "- No major route role is missing from the detected sequence.";
   const outcome = analysis.outcome;
+  const share = analysis.shareCard;
   const outcomeLines = outcome
     ? `## Missing Equation
 
@@ -1005,6 +1046,25 @@ Required fix: ${outcome.reviewer.requiredFix}
 
 Pass condition: ${outcome.reviewer.passCondition}`
     : "";
+  const shareLines = share
+    ? `## Share Card
+
+**${share.headline}**
+
+Present: ${share.present}
+
+Missing: ${share.missing}
+
+Next mathematical obligation:
+
+\`\`\`latex
+${share.nextEquation}
+\`\`\`
+
+Evidence: ${share.evidence} ${share.grammarEvidence}
+
+Scope: ${share.scope}`
+    : "";
   const equationLines = analysis.equations.length
     ? analysis.equations.map((equation) => {
         const routes = equation.activeRoutes.join(", ") || equation.topRoute;
@@ -1028,6 +1088,8 @@ ${analysis.mechanism}
 Atlas state: **${analysis.atlasState.label}**. ${analysis.atlasState.meaning}
 
 ${outcomeLines}
+
+${shareLines}
 
 ## Route Evidence
 

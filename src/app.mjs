@@ -179,6 +179,47 @@ function renderVerdict(analysis) {
   `;
 }
 
+function renderShareCard(analysis) {
+  const target = $("share-card");
+  const share = analysis?.shareCard;
+  if (!share) {
+    target.innerHTML = "";
+    return;
+  }
+  target.innerHTML = `
+    <article class="discovery-card">
+      <p class="outcome-label">Shareable result</p>
+      <h3>${escapeHtml(share.headline)}</h3>
+      <div class="card-field">
+        <span>Present</span>
+        <strong>${escapeHtml(share.present)}</strong>
+        <p>${escapeHtml(share.substrate)}</p>
+      </div>
+      <div class="card-field missing-field">
+        <span>Missing</span>
+        <strong>${escapeHtml(share.missing)}</strong>
+      </div>
+      <div class="card-field">
+        <span>Next mathematical obligation</span>
+        ${obligationPreview(share.nextEquation)}
+      </div>
+      <div class="card-field evidence-field">
+        <span>Evidence</span>
+        <p>${escapeHtml(share.evidence)}</p>
+        <p>${escapeHtml(share.grammarEvidence)}</p>
+      </div>
+      <p class="scope-note">${escapeHtml(share.scope)}</p>
+    </article>
+  `;
+}
+
+function obligationPreview(value) {
+  const text = String(value || "").trim();
+  const lines = text.split(/\n+/).filter(Boolean);
+  if (lines.length === 1 && text.length < 96) return latexBlock(text, { compact: true });
+  return `<pre class="obligation-code">${escapeHtml(text)}</pre>`;
+}
+
 function topLabels(scores, specs, limit) {
   return [...specs]
     .map((spec) => ({ ...spec, score: scores[spec.id] || 0 }))
@@ -338,6 +379,7 @@ function renderAnalysis(analysis) {
   $("atlas-state").textContent = analysis.atlasState.label;
   $("status-pill").textContent = `${analysis.equationCount} equation nodes`;
   renderVerdict(analysis);
+  renderShareCard(analysis);
   renderBars($("route-bars"), analysis.aggregateRoutes, ROUTES);
   renderBars($("substrate-bars"), analysis.aggregateSubstrates, SUBSTRATES, "substrate");
   renderChain(analysis.chain);
@@ -356,11 +398,152 @@ function analyzeCurrentInput() {
 
 async function copyMarkdown() {
   if (!state.analysis) analyzeCurrentInput();
-  await navigator.clipboard.writeText(state.analysis.markdown);
   $("copy-md-button").textContent = "Copied";
+  try {
+    await copyText(state.analysis.markdown);
+  } catch {
+    $("copy-md-button").textContent = "Copy failed";
+  } finally {
+    setTimeout(() => {
+      $("copy-md-button").textContent = "Copy MD";
+    }, 3000);
+  }
+}
+
+async function copyShareCard() {
+  if (!state.analysis) analyzeCurrentInput();
+  $("copy-card-button").textContent = "Copied";
+  try {
+    await copyText(shareCardText(state.analysis));
+  } catch {
+    $("copy-card-button").textContent = "Copy failed";
+  } finally {
+    setTimeout(() => {
+      $("copy-card-button").textContent = "Copy Card";
+    }, 3000);
+  }
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall through to the selection-based copy path below.
+    }
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+function shareCardText(analysis) {
+  const share = analysis.shareCard;
+  if (!share) return "";
+  return [
+    share.headline,
+    "",
+    `Present: ${share.present}`,
+    `Substrate evidence: ${share.substrate}`,
+    `Missing: ${share.missing}`,
+    "",
+    "Next mathematical obligation:",
+    share.nextEquation,
+    "",
+    `Evidence: ${share.evidence}`,
+    share.grammarEvidence,
+    "",
+    share.sourceTrace,
+    share.chainTrace,
+    `Scope: ${share.scope}`
+  ].filter(Boolean).join("\n");
+}
+
+function downloadShareSvg() {
+  if (!state.analysis) analyzeCurrentInput();
+  const svg = buildShareSvg(state.analysis);
+  const blob = new Blob([svg], { type: "image/svg+xml" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "equation-xray-card.svg";
+  link.click();
+  URL.revokeObjectURL(link.href);
+  $("download-card-button").textContent = "Saved";
   setTimeout(() => {
-    $("copy-md-button").textContent = "Copy MD";
-  }, 1200);
+    $("download-card-button").textContent = "SVG";
+  }, 3000);
+}
+
+function buildShareSvg(analysis) {
+  const share = analysis.shareCard;
+  const width = 1200;
+  const height = 760;
+  const rows = [
+    ["Present", share.present],
+    ["Substrate evidence", share.substrate],
+    ["Missing", share.missing],
+    ["Next mathematical obligation", share.nextEquation],
+    ["Evidence", `${share.evidence} ${share.grammarEvidence}`],
+    ["Scope", share.scope]
+  ];
+  let y = 154;
+  const body = rows.map(([label, value]) => {
+    const labelY = y;
+    y += 36;
+    const lines = wrapText(value, label === "Next mathematical obligation" ? 82 : 94).slice(0, label === "Evidence" ? 4 : 3);
+    const text = lines.map((line, index) => {
+      const family = label === "Next mathematical obligation" ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : "Inter, system-ui, sans-serif";
+      const size = label === "Next mathematical obligation" ? 25 : 27;
+      return `<text x="82" y="${y + index * 34}" fill="#171717" font-family="${family}" font-size="${size}" font-weight="${index === 0 && label === "Missing" ? "800" : "500"}">${escapeXml(line)}</text>`;
+    }).join("\n");
+    y += lines.length * 34 + 28;
+    return `
+      <text x="82" y="${labelY}" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="800" letter-spacing="2.5">${escapeXml(label.toUpperCase())}</text>
+      ${text}
+    `;
+  }).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <rect width="1200" height="760" fill="#f7f7f4"/>
+  <rect x="42" y="42" width="1116" height="676" rx="22" fill="#ffffff" stroke="#d7d7d0"/>
+  <rect x="42" y="42" width="12" height="676" rx="6" fill="#2457a6"/>
+  <text x="82" y="92" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="800" letter-spacing="2.5">EQUATION X-RAY</text>
+  <text x="82" y="128" fill="#171717" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="900">${escapeXml(share.headline)}</text>
+  ${body}
+  <text x="82" y="700" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="18">Mechanism-native scientific AI · synthetix-institute.github.io/equation-xray</text>
+</svg>`;
+}
+
+function wrapText(value, maxChars) {
+  const words = String(value || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function downloadJson() {
@@ -376,6 +559,8 @@ function downloadJson() {
 function installHandlers() {
   $("analyze-button").addEventListener("click", analyzeCurrentInput);
   $("copy-md-button").addEventListener("click", copyMarkdown);
+  $("copy-card-button").addEventListener("click", copyShareCard);
+  $("download-card-button").addEventListener("click", downloadShareSvg);
   $("download-json-button").addEventListener("click", downloadJson);
   document.querySelectorAll("[data-sample]").forEach((button) => {
     button.addEventListener("click", () => {
