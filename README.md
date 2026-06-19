@@ -1,0 +1,125 @@
+# Equation X-Ray
+
+**Upload or paste equations. See the mechanism path hidden inside the formalism.**
+
+Equation X-Ray is a standalone public companion prototype for mechanism-native
+scientific AI. It does not rank papers by semantic similarity. It reads equations
+as ordered construction moves: transport, closure, spectral/operator structure,
+boundary realization, incompatibility, and discrete protocol.
+
+The output is not a summary of a paper. It is a mechanism audit:
+
+- which operational routes are active;
+- which substrate the operators appear to act on;
+- how adjacent equations change role;
+- which role is preserved, added, projected, or converted;
+- what the next construction move should probably be;
+- what is missing before the mechanism becomes testable.
+
+This repository intentionally ships a lightweight deterministic engine, not the
+private Hyperion fingerprint database. The public contract is stable: a full
+Hyperion/FieldBridge backend can replace the browser scorer with trained
+autoencoder neighborhoods, morphism-chain decoder probabilities, and source
+witnesses without changing the UI.
+
+## Why This Is Different
+
+Most scientific software starts from names: paper titles, topics, keywords,
+citations, claims, or embeddings of natural language. Equation X-Ray starts from
+the formal object itself. A paper may describe a droplet, a neuron, a quantum
+state, or a collective protocol, but the same construction move may be present:
+a state evolves, a constraint closes the allowed space, an operator exposes a
+spectrum, a boundary changes admissibility, an incompatibility blocks joint
+readout, or a protocol orders the operation.
+
+The central idea is simple:
+
+```text
+equations -> operational roles -> morphism chain -> next construction move
+```
+
+That makes it useful as a public, inspectable front end for mechanism transfer:
+the interesting object is not the local noun, but the transformation that
+survives when the noun changes.
+
+## Run Locally
+
+No install is required.
+
+```bash
+git clone https://github.com/synthetix-institute/equation-xray.git
+cd equation-xray
+npm run start
+```
+
+Open:
+
+```text
+http://127.0.0.1:5178
+```
+
+You can also run the command-line analyzer:
+
+```bash
+node bin/equation-xray.mjs examples/schrodinger.tex
+node bin/equation-xray.mjs examples/transport_closure.tex --json
+```
+
+## Scope
+
+This first public version is deterministic and local. It is designed for
+inspection and reproducibility, not for claiming physical equivalence between
+theories.
+
+It can already:
+
+- parse LaTeX fragments and equation-heavy text;
+- keep systems of equations together when they appear in display environments;
+- reject common bibliography, prose, and instruction fragments;
+- label six operational routes;
+- label substrate evidence separately from route evidence;
+- build ordered morphism-chain tokens;
+- predict next moves using a public approximation of the trained grammar
+contract.
+
+It does not yet:
+
+- parse arbitrary binary PDFs in the browser;
+- ship the private full-archive fingerprints;
+- prove that two theories are equivalent;
+- synthesize final equations from scratch.
+
+## Public Engine Contract
+
+The browser and CLI both return the same object:
+
+```ts
+{
+  equations: EquationNode[],
+  aggregateRoutes: Record<RouteId, number>,
+  aggregateSubstrates: Record<SubstrateId, number>,
+  chain: MorphismMove[],
+  nextMoves: NextMove[],
+  missingRoles: MissingRole[],
+  atlasState: AtlasState,
+  markdown: string
+}
+```
+
+A backend can replace `src/engine.mjs` with:
+
+- Hyperion 192D operator-substrate fingerprints;
+- trained morphism-chain decoder probabilities;
+- GGAE recall basins and curvature/tension neighborhoods;
+- arXiv equation witnesses;
+- FieldBridge target-field receptor ranking.
+
+The UI should not need to change.
+
+## Development
+
+```bash
+npm test
+```
+
+The tests use only Node built-ins.

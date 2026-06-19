@@ -1,0 +1,25 @@
+{
+  "name": "equation-xray",
+  "version": "0.1.0",
+  "description": "A standalone mechanism microscope for equations: extract operational routes, substrates, morphism chains, and next construction moves.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "scripts": {
+    "start": "python3 -m http.server 5178",
+    "analyze": "node bin/equation-xray.mjs",
+    "test": "node tests/engine.test.mjs"
+  },
+  "keywords": [
+    "scientific-ai",
+    "equations",
+    "mechanisms",
+    "latex",
+    "morphism",
+    "fieldbridge",
+    "hyperion"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
