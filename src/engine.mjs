@@ -495,7 +495,7 @@ function missingRoles(nodes) {
       missing.push({
         id: route.id,
         label: route.label,
-        why: missingRoleText(route.id)
+        why: `No strong ${route.short} equation was detected.`
       });
     }
   }
@@ -503,22 +503,10 @@ function missingRoles(nodes) {
     missing.push({
       id: "current_checkpoint",
       label: "Current / readout checkpoint",
-      why: "Name the output that would be compared with data: a flux, spectrum, probability, trajectory, residual, or response variable."
+      why: "The chain has weak evidence for a measured, predicted, or queried output."
     });
   }
   return missing;
-}
-
-function missingRoleText(routeId) {
-  const text = {
-    transport_flow: "Add the evolution law: what quantity changes, flows, relaxes, or is transported?",
-    constraint_closure: "Add the admissibility condition: what conservation, normalization, constitutive law, or constraint makes the evolution legal?",
-    spectral_operator: "Add the operator or generator: what transformation exposes modes, rates, eigenvalues, or allowed outcomes?",
-    boundary_weak_form: "Add the realization layer: what domain, interface, boundary condition, or test function makes the law physically applicable?",
-    commutator_incompatibility: "Check compatibility: do two operations commute, or does their order change what can be jointly predicted?",
-    discrete_protocol: "Add the ordered protocol: what update, sampling, measurement, or algorithmic step must happen first?"
-  };
-  return text[routeId] || "Add the missing role before treating the mechanism as testable.";
 }
 
 function topScores(scores, specs, limit = 3) {
@@ -589,7 +577,7 @@ function predictNextMoves(nodes, chain, missing) {
 
   const push = (token, probability, reason) => {
     if (!moves.some((move) => move.token === token)) {
-      moves.push({ token, probability, ...publicMoveText(token, reason) });
+      moves.push({ token, probability, reason });
     }
   };
 
@@ -622,108 +610,13 @@ function predictNextMoves(nodes, chain, missing) {
   return moves.sort((a, b) => b.probability - a.probability).slice(0, 6);
 }
 
-function publicMoveText(token, fallbackReason) {
-  const moveText = {
-    add_current_checkpoint: {
-      title: "Name the measurable output",
-      action: "Add the variable that the theory predicts or controls. Without it, the fragment has structure but no clear test."
-    },
-    add_constraint_closure: {
-      title: "Add the normalization or closure condition",
-      action: "State the conservation, normalization, constitutive relation, or admissibility condition that makes the prediction well-defined."
-    },
-    add_boundary_weak_form: {
-      title: "Specify where the law acts",
-      action: "Attach the equation to a domain, boundary, interface, or weak form. This turns a formal rule into a realizable physical model."
-    },
-    preserve_spectral_operator: {
-      title: "Check whether the same operator survives",
-      action: "Rewrite the fragment in another basis, domain, or field and test whether the generator, spectrum, or mode structure is preserved."
-    },
-    preserve_constraint_closure: {
-      title: "Check whether admissibility survives",
-      action: "Track the constraint through the rewrite. If the closure changes, the apparent analogy is probably only notation-level."
-    },
-    preserve_transport_flow: {
-      title: "Check whether the same transported quantity survives",
-      action: "Identify the state, current, or flux before and after the transformation. A real transfer preserves the transport role, not the variable name."
-    },
-    constraint_closure_to_spectral_operator: {
-      title: "Turn the closed system into modes",
-      action: "Once the admissible space is fixed, look for the operator or decomposition that reveals rates, modes, eigenvalues, or stable responses."
-    },
-    spectral_operator_to_constraint_closure: {
-      title: "Normalize or constrain the spectral object",
-      action: "If a spectrum or operator is present, specify the domain, normalization, boundary, or admissibility rule that makes its predictions legal."
-    },
-    test_commutator_incompatibility: {
-      title: "Test whether operation order matters",
-      action: "Apply the two transformations in both orders. If the result changes, the limitation is structural, not an experimental nuisance."
-    }
-  };
-  return moveText[token] || {
-    title: token.replaceAll("_", " "),
-    action: fallbackReason
-  };
-}
-
 function mechanismStatement(nodes, aggregateRoutes, aggregateSubstrates) {
   if (!nodes.length) return "No clean equation mechanism was detected.";
-  const routeItems = topScores(aggregateRoutes, ROUTES, 4).filter((item) => item.score > 0);
-  const substrateItems = topScores(aggregateSubstrates, SUBSTRATES, 2).filter((item) => item.score > 0);
-  const routeSet = new Set(routeItems.map((item) => item.id));
-  const substrate = substrateItems.length
-    ? substrateItems.map((item) => item.label).join(" and ")
-    : "an unspecified substrate";
-
-  let core;
-  if (routeSet.has("spectral_operator") && routeSet.has("constraint_closure") && routeSet.has("discrete_protocol")) {
-    core = "This fragment builds a permitted-question machine: constraints select the admissible states, an operator exposes the allowed outcomes or modes, and a protocol assigns or updates the readout.";
-  } else if (routeSet.has("spectral_operator") && routeSet.has("transport_flow")) {
-    core = "This fragment turns change into modes: an evolving state is passed through an operator or generator so that rates, spectra, or stable responses become visible.";
-  } else if (routeSet.has("transport_flow") && routeSet.has("constraint_closure")) {
-    core = "This fragment builds a closed transport law: a quantity changes or flows, while a constraint decides which trajectories are physically admissible.";
-  } else if (routeSet.has("boundary_weak_form") && routeSet.has("constraint_closure")) {
-    core = "This fragment makes the boundary part of the law: admissibility is decided not only in the bulk equation, but also by the domain, interface, or weak form.";
-  } else if (routeSet.has("commutator_incompatibility") && routeSet.has("spectral_operator")) {
-    core = "This fragment is about incompatible questions: the order of operations changes the available spectral or measurement information.";
-  } else if (routeSet.has("spectral_operator")) {
-    core = "This fragment is organized around an operator: prediction depends on the modes, eigenvalues, generator, or spectrum it exposes.";
-  } else if (routeSet.has("constraint_closure")) {
-    core = "This fragment is organized around admissibility: it states which states or transformations are allowed before a prediction can be made.";
-  } else {
-    core = "This fragment contains equation structure, but the dominant mechanism is weakly resolved from the current public scorer.";
-  }
-
-  return `${core} The working substrate appears to be ${substrate}. The useful question is now concrete: which role is preserved through the equation chain, and which missing role would make the construction testable?`;
-}
-
-function routeInterpretation(analysis) {
-  const routes = new Set(
-    topScores(analysis.aggregateRoutes, ROUTES, 6)
-      .filter((item) => item.score >= 0.15)
-      .map((item) => item.id)
-  );
-  const statements = [];
-  if (routes.has("constraint_closure")) {
-    statements.push("Admissibility is active: some states or transformations are being ruled in or ruled out.");
-  }
-  if (routes.has("spectral_operator")) {
-    statements.push("Operator structure is active: prediction is organized through modes, eigenvalues, generators, or spectra.");
-  }
-  if (routes.has("transport_flow")) {
-    statements.push("Evolution is active: the fragment contains a changing, transported, or relaxing quantity.");
-  }
-  if (routes.has("boundary_weak_form")) {
-    statements.push("Realization is active: the domain, interface, or weak form participates in the law.");
-  }
-  if (routes.has("commutator_incompatibility")) {
-    statements.push("Compatibility is active: operation order may change what can be jointly predicted.");
-  }
-  if (routes.has("discrete_protocol")) {
-    statements.push("Protocol is active: an ordered update, measurement, or probability assignment is part of the mechanism.");
-  }
-  return statements;
+  const routeNames = topScores(aggregateRoutes, ROUTES, 3).filter((item) => item.score > 0).map((item) => item.label);
+  const substrateNames = topScores(aggregateSubstrates, SUBSTRATES, 2).filter((item) => item.score > 0).map((item) => item.label);
+  const dominant = routeNames.length ? routeNames.join(", ") : "a weakly classified route mixture";
+  const substrate = substrateNames.length ? substrateNames.join(" and ") : "an unspecified substrate";
+  return `The equation sequence is organized primarily by ${dominant}. The apparent substrate is ${substrate}. Read as a construction, the chain asks which role is preserved across adjacent formulas, which role is newly added, and which missing role would make the mechanism testable.`;
 }
 
 export function analyzeText(inputText, options = {}) {
@@ -751,7 +644,6 @@ export function analyzeText(inputText, options = {}) {
     atlasState,
     mechanism: mechanismStatement(equations, aggregateRoutes, aggregateSubstrates)
   };
-  analysis.interpretation = routeInterpretation(analysis);
   analysis.markdown = renderMarkdown(analysis);
   return analysis;
 }
@@ -767,7 +659,7 @@ export function renderMarkdown(analysis) {
     ? analysis.chain.map((move) => `- ${move.from} -> ${move.to}: \`${move.token}\``).join("\n")
     : "- No adjacent equation move detected.";
   const nextLines = analysis.nextMoves.length
-    ? analysis.nextMoves.map((move) => `- **${move.title}** (${move.probability.toFixed(2)}): ${move.action}`).join("\n")
+    ? analysis.nextMoves.map((move) => `- \`${move.token}\` (${move.probability.toFixed(2)}): ${move.reason}`).join("\n")
     : "- No next move predicted.";
   const missingLines = analysis.missingRoles.length
     ? analysis.missingRoles.map((role) => `- ${role.label}: ${role.why}`).join("\n")
@@ -784,17 +676,13 @@ export function renderMarkdown(analysis) {
 
 Source: ${analysis.sourceName}
 
-## What The Equations Do
+## Mechanism
 
 ${analysis.mechanism}
 
 Atlas state: **${analysis.atlasState.label}**. ${analysis.atlasState.meaning}
 
-## Mechanism Signals
-
-${analysis.interpretation.length ? analysis.interpretation.map((item) => `- ${item}`).join("\n") : "- No strong mechanism signal was detected."}
-
-## Technical Route Evidence
+## Route Evidence
 
 ${routeLine || "No route evidence detected."}
 
@@ -806,11 +694,11 @@ ${substrateLine || "No substrate evidence detected."}
 
 ${chainLines}
 
-## Suggested Checks
+## Predicted Next Moves
 
 ${nextLines}
 
-## Missing Pieces
+## Missing Roles
 
 ${missingLines}
 

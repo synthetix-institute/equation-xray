@@ -99,10 +99,9 @@ function renderNextMoves(moves) {
   target.innerHTML = moves
     .map((move) => `
       <li>
-        <strong>${move.title}</strong>
-        <span class="probability">${Math.round(move.probability * 100)}%</span>
-        <div>${move.action}</div>
         <span class="token">${move.token}</span>
+        <span class="probability">${Math.round(move.probability * 100)}%</span>
+        <div>${move.reason}</div>
       </li>
     `)
     .join("");
@@ -149,15 +148,6 @@ function renderEquationNodes(nodes) {
     .join("");
 }
 
-function renderSignals(signals) {
-  const target = $("signal-list");
-  if (!signals?.length) {
-    target.innerHTML = "<li>No strong mechanism signal was detected.</li>";
-    return;
-  }
-  target.innerHTML = signals.map((signal) => `<li>${signal}</li>`).join("");
-}
-
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -168,7 +158,6 @@ function escapeHtml(value) {
 
 function renderAnalysis(analysis) {
   $("mechanism-summary").textContent = analysis.mechanism;
-  renderSignals(analysis.interpretation);
   $("equation-count").textContent = String(analysis.equationCount);
   $("atlas-state").textContent = analysis.atlasState.label;
   $("status-pill").textContent = `${analysis.equationCount} equation nodes`;
