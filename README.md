@@ -2,10 +2,16 @@
 
 **Upload or paste equations. Find the missing equation.**
 
-Equation X-Ray is a standalone public companion prototype for mechanism-native
-scientific AI. It does not rank papers by semantic similarity. It reads equations
-as ordered construction moves: transport, closure, spectral/operator structure,
-boundary realization, incompatibility, and discrete protocol.
+Equation X-Ray is a standalone public demo for mechanism-native scientific AI.
+It does not rank papers by semantic similarity. It reads equations as ordered
+construction moves: transport, closure, spectral/operator structure, boundary
+realization, incompatibility, and discrete protocol.
+
+Public demo URL after GitHub Pages is enabled:
+
+```text
+https://synthetix-institute.github.io/equation-xray/
+```
 
 The output is not a summary of a paper. It is a mechanism audit plus a concrete
 construction target:
@@ -19,8 +25,9 @@ construction target:
 - what mechanism transfer or experiment would test the claim;
 - what a reviewer should ask the authors to add.
 
-This repository intentionally ships a lightweight deterministic engine, not the
-private Hyperion fingerprint database. The public contract is stable: a full
+This repository intentionally ships a lightweight deterministic engine. It does
+not include the private Hyperion fingerprint database, the trained autoencoder,
+or the trained morphism-chain decoder. The public contract is stable: a full
 Hyperion/FieldBridge backend can replace the browser scorer with trained
 autoencoder neighborhoods, morphism-chain decoder probabilities, and source
 witnesses without changing the UI.
@@ -46,7 +53,18 @@ That makes it useful as a public, inspectable front end for mechanism transfer:
 the interesting object is not the local noun, but the transformation that
 survives when the noun changes.
 
-## Run Locally
+## Launch
+
+### Web Demo
+
+The app is a static site. Once pushed to GitHub and GitHub Pages is enabled from
+`main` / root, it launches directly at:
+
+```text
+https://synthetix-institute.github.io/equation-xray/
+```
+
+### Local Launch
 
 No install is required.
 
@@ -61,6 +79,9 @@ Open:
 ```text
 http://127.0.0.1:5178
 ```
+
+The browser UI uses native ES modules, so a static server is more reliable than
+opening `index.html` with `file://`.
 
 You can also run the command-line analyzer:
 
@@ -107,6 +128,8 @@ It does not yet:
 
 - parse arbitrary binary PDFs in the browser;
 - ship the private full-archive fingerprints;
+- include the trained autoencoder;
+- include the trained morphism-chain decoder;
 - prove that two theories are equivalent;
 - synthesize final equations from scratch.
 
@@ -141,6 +164,9 @@ A backend can replace `src/engine.mjs` with:
 - FieldBridge target-field receptor ranking.
 
 The UI should not need to change.
+
+See [docs/public-demo-scope.md](docs/public-demo-scope.md) for the boundary
+between this public demo and the full Hyperion backend.
 
 ## Development
 
