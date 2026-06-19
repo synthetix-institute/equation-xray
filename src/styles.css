@@ -20,6 +20,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--ink);
   font-family:
@@ -87,11 +88,12 @@ h1 {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(300px, 0.95fr) minmax(420px, 1.2fr) minmax(360px, 1fr);
+  grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1fr) minmax(440px, 1.35fr);
   gap: 18px;
   max-width: 1520px;
   margin: 0 auto;
   align-items: start;
+  min-width: 0;
 }
 
 .panel {
@@ -101,6 +103,8 @@ h1 {
   box-shadow: var(--shadow);
   padding: 18px;
   min-height: 720px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .panel-head {
@@ -223,12 +227,13 @@ textarea {
 
 .bar-track {
   height: 9px;
-  background: #e8e8e1;
+  background: #deded7;
   border-radius: 999px;
   overflow: hidden;
 }
 
 .bar-fill {
+  display: block;
   height: 100%;
   background: var(--blue);
   border-radius: 999px;
@@ -264,6 +269,7 @@ textarea {
   padding: 14px;
   margin-bottom: 12px;
   background: #f6f9ff;
+  min-width: 0;
 }
 
 .verdict-card h3 {
@@ -310,6 +316,7 @@ textarea {
   border-radius: 6px;
   padding: 12px;
   background: #fdfdfb;
+  min-width: 0;
 }
 
 .primary-outcome {
@@ -348,27 +355,48 @@ textarea {
 }
 
 .math-render {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 10px 0;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: white;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .math-render .katex-display {
   margin: 0;
+  max-width: 100%;
+}
+
+.math-render .katex {
+  font-size: 0.96em;
+}
+
+.compact-math {
+  padding: 7px 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.compact-math .katex {
+  font-size: 0.9em;
 }
 
 .latex-stack {
   display: grid;
   gap: 8px;
   margin: 10px 0;
+  min-width: 0;
 }
 
 .construction-lane {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .lane-card {
@@ -377,6 +405,8 @@ textarea {
   border-radius: 6px;
   background: #fdfdfb;
   padding: 10px 10px 10px 44px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .lane-card::before {
@@ -422,6 +452,14 @@ textarea {
 .lane-card .math-fallback {
   margin: 6px 0;
   padding: 8px;
+}
+
+.lane-card .math-render .katex-display {
+  text-align: left;
+}
+
+.lane-card .math-render .katex {
+  font-size: 0.86em;
 }
 
 .lane-missing {

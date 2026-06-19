@@ -39,6 +39,25 @@ C(q,J,\lambda)=0
 
 \[
 P(a_i)=\langle\psi|\Pi_i|\psi\rangle
+\]`,
+  polymer: String.raw`\[
+\lambda = L_x/L_{x,0}
+\]
+
+\[
+\sigma_{true} = \sigma_{xx} - \frac{\sigma_{yy}+\sigma_{zz}}{2}
+\]
+
+\[
+\frac{\sigma_{true}}{\lambda^2-\frac{1}{\lambda}} = 2\left(C_1+\frac{C_2}{\lambda}\right)
+\]
+
+\[
+S=(3\langle \cos^2\theta\rangle-1)/2
+\]
+
+\[
+P(l)=p_0(1-p_0)^l=p_0\exp(-l/l_0)
 \]`
 };
 
@@ -50,7 +69,10 @@ const state = {
 const $ = (id) => document.getElementById(id);
 
 function setInitialInput() {
-  $("source-input").value = samples.schrodinger;
+  const requestedSample = new URLSearchParams(window.location.search).get("sample");
+  const sampleKey = samples[requestedSample] ? requestedSample : "schrodinger";
+  state.sourceName = `${sampleKey} sample`;
+  $("source-input").value = samples[sampleKey];
 }
 
 function pct(value) {
@@ -202,7 +224,7 @@ function renderMissingInsert(analysis) {
     <article class="lane-card lane-missing">
       <span class="lane-id">Insert</span>
       <h4>${escapeHtml(missing.title)}</h4>
-      ${latexStack(missing.candidateLatex)}
+      ${latexStack(missing.candidateLatex, { compact: true })}
     </article>
   `;
 }
@@ -212,7 +234,7 @@ function renderLaneNode(node) {
   return `
     <article class="lane-card">
       <span class="lane-id">${node.id}</span>
-      ${latexBlock(node.formula)}
+      ${latexBlock(node.formula, { compact: true })}
       <span class="tag">${escapeHtml(route)}</span>
     </article>
   `;
@@ -274,24 +296,25 @@ function renderOutcome(outcome) {
   `;
 }
 
-function latexStack(value) {
+function latexStack(value, options = {}) {
   const lines = String(value || "")
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean);
   if (!lines.length) return "";
-  return `<div class="latex-stack">${lines.map((line) => latexBlock(line)).join("")}</div>`;
+  return `<div class="latex-stack">${lines.map((line) => latexBlock(line, options)).join("")}</div>`;
 }
 
-function latexBlock(value) {
+function latexBlock(value, options = {}) {
   const source = String(value || "").trim();
   if (!source) return "";
   const fallback = `<pre class="math-fallback">${escapeHtml(source)}</pre>`;
   const katex = window.katex;
   if (!katex?.renderToString) return fallback;
   try {
-    return `<div class="math-render" data-latex="${escapeHtml(source)}">${katex.renderToString(source, {
-      displayMode: true,
+    const compact = Boolean(options.compact);
+    return `<div class="math-render ${compact ? "compact-math" : ""}" data-latex="${escapeHtml(source)}">${katex.renderToString(source, {
+      displayMode: !compact,
       throwOnError: false,
       strict: "ignore",
       trust: false
