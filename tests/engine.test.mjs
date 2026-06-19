@@ -41,11 +41,31 @@ assert.ok([
 const analysis = analyzeText(schrodinger, { sourceName: "test" });
 assert.equal(analysis.equationCount, 3);
 assert.ok(analysis.nextMoves.length > 0);
+assert.ok(analysis.equations[0].localPrediction.predictedToken);
+assert.ok(analysis.equations[0].localPrediction.rewrite.includes("Project"));
 assert.ok(analysis.markdown.includes("Equation X-Ray Report"));
+assert.ok(analysis.markdown.includes("Local move:"));
 
 assert.equal(isCleanEquation(String.raw`\bibitem{bad} Astrophys. J.`), false);
 assert.equal(isCleanEquation("should substitute om = 1 into the result"), false);
+assert.equal(isCleanEquation(String.raw`\label{fig:protocol_cl_deform}`), false);
+assert.equal(
+  isCleanEquation(String.raw`The process, as shown in Figure \ref{fig:protocol_deform}, is simulated in $25\times 10^6$ MD steps.`),
+  false
+);
+assert.equal(
+  isCleanEquation(String.raw`The process is simulated in $25\times 10^6$ MD steps.`),
+  false
+);
 assert.equal(isCleanEquation(String.raw`\partial_t q+\nabla\cdot J=S`), true);
+assert.equal(isCleanEquation(String.raw`\label{eq:transport}\partial_t q+\nabla\cdot J=S`), true);
+
+const noisy = analyzeText(String.raw`\label{fig:protocol_cl_deform}
+The process, as shown in Figure \ref{fig:protocol_deform}, is simulated in $25\times 10^6$ MD steps.
+\[
+\partial_t q+\nabla\cdot J=S
+\]`);
+assert.equal(noisy.equationCount, 1);
 
 const transport = analyzeText(String.raw`\[
 \partial_t q+\nabla\cdot J=S

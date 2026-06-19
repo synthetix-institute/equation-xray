@@ -134,6 +134,7 @@ function renderEquationNodes(nodes) {
     .map((node) => {
       const routes = (node.activeRoutes.length ? node.activeRoutes : [node.topRoute]).map(routeLabel);
       const substrates = (node.activeSubstrates.length ? node.activeSubstrates : [node.topSubstrate]).map(substrateLabel);
+      const local = node.localPrediction;
       return `
         <article class="equation-node">
           <strong>${node.id}</strong>
@@ -142,6 +143,13 @@ function renderEquationNodes(nodes) {
             ${routes.map((label) => `<span class="tag">${label}</span>`).join("")}
             ${substrates.map((label) => `<span class="tag">${label}</span>`).join("")}
           </div>
+          ${local ? `
+            <div class="local-prediction">
+              <div><strong>Move</strong> <span class="token">${local.observedMove || local.predictedToken}</span></div>
+              <div><strong>Rewrite</strong> ${escapeHtml(local.rewrite)}</div>
+              <div><strong>Check</strong> ${escapeHtml(local.check)}</div>
+            </div>
+          ` : ""}
         </article>
       `;
     })

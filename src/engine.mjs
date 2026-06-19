@@ -230,6 +230,11 @@ export const SUBSTRATES = [
 const GARBAGE_PATTERNS = [
   /\\bibitem|bibliography|references/i,
   /\\def\b|\\newcommand|\\renewcommand/i,
+  /^\\label\s*\{[^}]*\}\s*$/i,
+  /^\\(?:ref|eqref|autoref|cref|Cref)\s*\{[^}]*\}\s*$/i,
+  /\\label\s*\{\s*fig:/i,
+  /\\(?:ref|eqref|autoref|cref|Cref)\s*\{\s*fig:/i,
+  /\\includegraphics|\\caption\b|\\begin\s*\{figure\}|\\end\s*\{figure\}/i,
   /__HYPERION_SEQ/i,
   /\b(eqno|notag|nonumber|endcases|rmitem)\b/i,
   /\bshould\s+(substitute|replace|set|use)\b/i,
@@ -241,6 +246,10 @@ const GARBAGE_PATTERNS = [
   /\bis\s+(an?|the)\s+[a-z][a-z\s-]{8,80}$/i,
   /\bbifurcation\s+at\b/i,
   /\bbox\b/i,
+  /\bprocess\b[\s\S]{0,80}\\ref\s*\{/i,
+  /\bsimulated\s+in\b/i,
+  /\bshown\s+in\s+figure\b/i,
+  /\bMD\s+steps\b/i,
   /^\s*\+/,
   /,\s*,\s*$/,
   /\bquad\s*$/,
@@ -277,12 +286,32 @@ function stripEquationWrapper(value) {
     .replace(/\$\$$/, "")
     .replace(/^\\begin\s*\{[^}]+\*?\}/i, "")
     .replace(/\\end\s*\{[^}]+\*?\}$/i, "")
+    .replace(/\\label\s*\{[^}]*\}/gi, "")
     .trim();
+}
+
+function stripInlineMath(value) {
+  return String(value || "")
+    .replace(/\$[^$]*\$/g, " ")
+    .replace(/\\\([^)]*\\\)/g, " ")
+    .replace(/\\\[[\s\S]*?\\\]/g, " ");
+}
+
+function isProseDominant(text) {
+  const withoutMath = stripInlineMath(text);
+  const words = withoutMath.match(/\b[A-Za-z]{3,}\b/g) || [];
+  const sentencePunctuation = /[.!?]\s*$/.test(withoutMath.trim());
+  const mathMarks = (text.match(/[=+\-*/^_{}\\()[\],.;:<>|]/g) || []).length;
+  const relationMarks = (text.match(/=|\\leq|\\geq|\\to|\\rightarrow|\\Rightarrow|\\implies|\\approx|\\sim/g) || []).length;
+  if (words.length >= 8 && relationMarks === 0) return true;
+  if (sentencePunctuation && words.length >= 5 && mathMarks < 10) return true;
+  return false;
 }
 
 export function isFormulaLike(value) {
   const text = compactWhitespace(value);
   if (text.length < MIN_FORMULA_LENGTH) return false;
+  if (isProseDominant(text)) return false;
   if (!FORMULA_CUES.some((pattern) => pattern.test(text))) return false;
   const alphaWords = (text.match(/\b[a-zA-Z]{4,}\b/g) || []).length;
   const operators = (text.match(/[=+\-*/^_{}\\()[\]]/g) || []).length;
@@ -610,6 +639,68 @@ function predictNextMoves(nodes, chain, missing) {
   return moves.sort((a, b) => b.probability - a.probability).slice(0, 6);
 }
 
+function localEquationPrediction(node, incomingMove, outgoingMove) {
+  const routeSet = new Set(node.activeRoutes.length ? node.activeRoutes : [node.topRoute]);
+  const substrate = substrateLabel(node.topSubstrate);
+  const observed = outgoingMove ? outgoingMove.token : null;
+  let predictedToken = "preserve_constraint_closure";
+  let rewrite = "Keep the formal role stable and make the next equation expose what changes, what is preserved, and what is measured.";
+  let check = "Compare the role before and after the rewrite; reject the move if only notation changes.";
+
+  if (routeSet.has("transport_flow")) {
+    if (routeSet.has("spectral_operator")) {
+      predictedToken = "project_spectral_operator";
+      rewrite = "Project the evolution equation onto modes, eigenfunctions, rates, or a generator spectrum; keep the evolving state explicit.";
+      check = "Verify that the projected modes still reproduce the original time or transport law.";
+    } else {
+      predictedToken = "add_constraint_closure";
+      rewrite = "Add the conservation, constitutive, normalization, or source constraint that closes the transport equation.";
+      check = "Check that the same state/current pair appears before and after closure.";
+    }
+  } else if (routeSet.has("constraint_closure")) {
+    if (routeSet.has("boundary_weak_form")) {
+      predictedToken = "preserve_boundary_weak_form";
+      rewrite = "Carry the closure into the domain or interface statement; make the boundary term part of the equation, not a caption.";
+      check = "Compute the residual with and without the boundary term.";
+    } else {
+      predictedToken = "constraint_closure_to_spectral_operator";
+      rewrite = "Use the closed admissible space to derive an operator, mode decomposition, stability condition, or response spectrum.";
+      check = "The next equation should change prediction, not only rename the constraint.";
+    }
+  } else if (routeSet.has("spectral_operator")) {
+    if (node.readoutScore < 0.35) {
+      predictedToken = "add_current_checkpoint";
+      rewrite = "Add the observable, probability, flux, residual, or measured current that reads the operator output.";
+      check = "State the operator domain and normalization before comparing spectra.";
+    } else {
+      predictedToken = "preserve_spectral_operator";
+      rewrite = "Rewrite in another basis or realization while preserving the operator, generator, or spectrum.";
+      check = "The eigenvalues, modes, rates, or projection rule should survive the rewrite.";
+    }
+  } else if (routeSet.has("boundary_weak_form")) {
+    predictedToken = "boundary_weak_form_to_constraint_closure";
+    rewrite = "Turn the domain, interface, or weak statement into the closure condition it imposes on admissible states.";
+    check = "Test whether changing the boundary changes the residual or allowed solution set.";
+  } else if (routeSet.has("commutator_incompatibility")) {
+    predictedToken = "test_commutator_incompatibility";
+    rewrite = "Evaluate the two operation orders explicitly and branch the derivation if the commutator or residual is nonzero.";
+    check = "A valid next equation should state which joint readout is forbidden or approximate.";
+  } else if (routeSet.has("discrete_protocol")) {
+    predictedToken = "protocol_to_readout";
+    rewrite = "Connect the ordered update, sampling rule, or protocol step to the measured probability, state, or residual.";
+    check = "Changing the order of the protocol should change the predicted output if the protocol is causal.";
+  }
+
+  return {
+    observedMove: observed,
+    incomingMove: incomingMove ? incomingMove.token : null,
+    predictedToken,
+    substrate,
+    rewrite,
+    check
+  };
+}
+
 function mechanismStatement(nodes, aggregateRoutes, aggregateSubstrates) {
   if (!nodes.length) return "No clean equation mechanism was detected.";
   const routeNames = topScores(aggregateRoutes, ROUTES, 3).filter((item) => item.score > 0).map((item) => item.label);
@@ -626,6 +717,9 @@ export function analyzeText(inputText, options = {}) {
   for (let index = 1; index < equations.length; index += 1) {
     chain.push(compareEquations(equations[index - 1], equations[index]));
   }
+  equations.forEach((node, index) => {
+    node.localPrediction = localEquationPrediction(node, chain[index - 1] || null, chain[index] || null);
+  });
   const aggregateRoutes = averageScores(equations, "routeScores", ROUTES);
   const aggregateSubstrates = averageScores(equations, "substrateScores", SUBSTRATES);
   const missing = missingRoles(equations);
@@ -668,7 +762,11 @@ export function renderMarkdown(analysis) {
     ? analysis.equations.map((equation) => {
         const routes = equation.activeRoutes.join(", ") || equation.topRoute;
         const substrates = equation.activeSubstrates.join(", ") || equation.topSubstrate;
-        return `### ${equation.id}\n\n\`\`\`latex\n${equation.formula}\n\`\`\`\n\nRoutes: ${routes}\n\nSubstrate evidence: ${substrates}`;
+        const local = equation.localPrediction;
+        const localLines = local
+          ? `\n\nLocal move: \`${local.observedMove || local.predictedToken}\`\n\nRewrite/check: ${local.rewrite} ${local.check}`
+          : "";
+        return `### ${equation.id}\n\n\`\`\`latex\n${equation.formula}\n\`\`\`\n\nRoutes: ${routes}\n\nSubstrate evidence: ${substrates}${localLines}`;
       }).join("\n\n")
     : "No clean equation core was detected.";
 
