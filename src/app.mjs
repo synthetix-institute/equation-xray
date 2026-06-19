@@ -156,6 +156,38 @@ function renderEquationNodes(nodes) {
     .join("");
 }
 
+function renderOutcome(outcome) {
+  const target = $("outcome-cards");
+  if (!outcome) {
+    target.innerHTML = "";
+    return;
+  }
+  target.innerHTML = `
+    <article class="outcome-card primary-outcome">
+      <p class="outcome-label">Missing equation</p>
+      <h3>${escapeHtml(outcome.missingEquation.title)}</h3>
+      <p>${escapeHtml(outcome.missingEquation.claim)}</p>
+      <pre>${escapeHtml(outcome.missingEquation.candidateLatex)}</pre>
+      <p><strong>Why</strong> ${escapeHtml(outcome.missingEquation.why)}</p>
+      <p><strong>Falsifier</strong> ${escapeHtml(outcome.missingEquation.falsifier)}</p>
+    </article>
+    <article class="outcome-card">
+      <p class="outcome-label">Mechanism transfer</p>
+      <h3>${escapeHtml(outcome.mechanismTransfer.title)}</h3>
+      <p><strong>Source</strong> ${escapeHtml(outcome.mechanismTransfer.sourceMechanism)}</p>
+      <p><strong>Target</strong> ${escapeHtml(outcome.mechanismTransfer.targetExperiment)}</p>
+      <pre>${escapeHtml(outcome.mechanismTransfer.targetLatex)}</pre>
+      <p><strong>Control</strong> ${escapeHtml(outcome.mechanismTransfer.control)}</p>
+    </article>
+    <article class="outcome-card reviewer-card">
+      <p class="outcome-label">Equation reviewer</p>
+      <h3>${escapeHtml(outcome.reviewer.verdict)}</h3>
+      <p><strong>Fix</strong> ${escapeHtml(outcome.reviewer.requiredFix)}</p>
+      <p><strong>Pass</strong> ${escapeHtml(outcome.reviewer.passCondition)}</p>
+    </article>
+  `;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -172,6 +204,7 @@ function renderAnalysis(analysis) {
   renderBars($("route-bars"), analysis.aggregateRoutes, ROUTES);
   renderBars($("substrate-bars"), analysis.aggregateSubstrates, SUBSTRATES, "substrate");
   renderChain(analysis.chain);
+  renderOutcome(analysis.outcome);
   renderNextMoves(analysis.nextMoves);
   renderMissingRoles(analysis.missingRoles);
   renderEquationNodes(analysis.equations);

@@ -47,7 +47,6 @@ export const ROUTES = [
     short: "operator-spectrum",
     definition: "An operator, generator, eigenvalue, spectrum, or resolvent organizes prediction.",
     cues: [
-      /\\lambda\b/,
       /\beigen/i,
       /\bspectrum|spectral/i,
       /\\hat\s*\{?\s*H/i,
@@ -92,8 +91,7 @@ export const ROUTES = [
       /\\neq|\\ne|not\s*=/i,
       /\bAB\s*-\s*BA\b/i,
       /\buncertainty\b/i,
-      /\bincompatible|incompatibility\b/i,
-      /\\sigma|\\gamma/
+      /\bincompatible|incompatibility\b/i
     ]
   },
   {
@@ -229,6 +227,7 @@ export const SUBSTRATES = [
 
 const GARBAGE_PATTERNS = [
   /\\bibitem|bibliography|references/i,
+  /\\documentclass|\\usepackage|\\begin\s*\{document\}|\\end\s*\{document\}/i,
   /\\def\b|\\newcommand|\\renewcommand/i,
   /^\\label\s*\{[^}]*\}\s*$/i,
   /^\\(?:ref|eqref|autoref|cref|Cref)\s*\{[^}]*\}\s*$/i,
@@ -250,6 +249,14 @@ const GARBAGE_PATTERNS = [
   /\bsimulated\s+in\b/i,
   /\bshown\s+in\s+figure\b/i,
   /\bMD\s+steps\b/i,
+  /\\cite\s*\{|~\\cite\s*\{|Equation~\\ref|Figure\s*\\ref/i,
+  /\\multirow|\\newmoon|\\black(square|lozenge)|\\RHD/i,
+  /&.*&|\\\\\s*$/,
+  /^\([a-z]\)\s+/i,
+  /\bresults\s+for\b/i,
+  /\bwe\s+(adopt|define|include|calculate|use)\b/i,
+  /\bthese\s+(include|showed|lines)\b/i,
+  /\bthe\s+(reduced|cooling|temperature|values?)\b/i,
   /^\s*\+/,
   /,\s*,\s*$/,
   /\bquad\s*$/,
@@ -304,8 +311,24 @@ function isProseDominant(text) {
   const mathMarks = (text.match(/[=+\-*/^_{}\\()[\],.;:<>|]/g) || []).length;
   const relationMarks = (text.match(/=|\\leq|\\geq|\\to|\\rightarrow|\\Rightarrow|\\implies|\\approx|\\sim/g) || []).length;
   if (words.length >= 8 && relationMarks === 0) return true;
-  if (sentencePunctuation && words.length >= 5 && mathMarks < 10) return true;
+  if (sentencePunctuation && words.length >= 5 && mathMarks < 18) return true;
+  if (words.length >= 10 && mathMarks / Math.max(1, words.length) < 1.8) return true;
   return false;
+}
+
+function beginsLikeEquation(text) {
+  return /^\s*(?:\\?[A-Za-z][A-Za-z0-9_{}\\^]*|\\frac|\\partial|\\nabla|\\int|\\sum|\\prod|\[[^\]]|[({]?\s*[A-Za-z\\])/.test(text);
+}
+
+function isCleanLineEquation(value) {
+  const text = compactWhitespace(value);
+  if (!isCleanEquation(text)) return false;
+  if (!beginsLikeEquation(text)) return false;
+  const withoutMath = stripInlineMath(text);
+  const words = withoutMath.match(/\b[A-Za-z]{3,}\b/g) || [];
+  const relationMarks = (text.match(/=|\\leq|\\geq|\\to|\\rightarrow|\\Rightarrow|\\implies|\\approx|\\sim/g) || []).length;
+  if (words.length >= 6 && relationMarks <= 1) return false;
+  return true;
 }
 
 export function isFormulaLike(value) {
@@ -408,7 +431,7 @@ export function extractEquations(inputText) {
     const offset = lineOffset(index, lines);
     if (spans.some(([start, end]) => offset >= start && offset <= end)) return;
     const trimmed = line.trim();
-    if (isCleanEquation(trimmed)) addMatch(trimmed, offset);
+    if (isCleanLineEquation(trimmed)) addMatch(trimmed, offset);
   });
 
   const seen = new Set();
@@ -701,6 +724,190 @@ function localEquationPrediction(node, incomingMove, outgoingMove) {
   };
 }
 
+function hasAny(text, patterns) {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function equationsWith(nodes, patterns) {
+  return nodes
+    .filter((node) => hasAny(node.formula, patterns))
+    .map((node) => node.id);
+}
+
+function buildOutcome(nodes, chain, aggregateRoutes, aggregateSubstrates, inputText) {
+  const formulaText = nodes.map((node) => node.formula).join("\n");
+  const allText = `${inputText || ""}\n${formulaText}`;
+  const routeSet = new Set(
+    topScores(aggregateRoutes, ROUTES, 6)
+      .filter((item) => item.score > 0)
+      .map((item) => item.id)
+  );
+  const substrateSet = new Set(
+    topScores(aggregateSubstrates, SUBSTRATES, 5)
+      .filter((item) => item.score > 0)
+      .map((item) => item.id)
+  );
+
+  const polymerStress = hasAny(allText, [/\\sigma\s*_\s*\{?\s*true\s*\}?/i, /sigma_?\{?true\}?/i, /Mooney/i, /C_1|C_2/]);
+  const stretch = hasAny(allText, [/\\lambda/i, /L_\s*\{?\s*x\s*\}?\/L_\s*\{?\s*x,?0\s*\}?/i]);
+  const microstructure = hasAny(allText, [/S\s*=\s*\(3\\langle\\cos/i, /P\s*\(\s*l\s*\)/, /l_0/i, /stem|crystallinity|orientation/i]);
+
+  if (polymerStress && stretch && microstructure) {
+    const macroIds = equationsWith(nodes, [/\\sigma\s*_\s*\{?\s*true\s*\}?/i, /\\lambda/i, /C_1|C_2|G\s*=/]);
+    const microIds = equationsWith(nodes, [/S\s*=/, /P\s*\(\s*l\s*\)/, /l_0|\\langle\\cos/i]);
+    return {
+      missingEquation: {
+        title: "Missing equation: microstructure -> modulus",
+        claim: "The chain defines stretch, true stress and modulus-like quantities, and it separately defines orientation or stem-length statistics. The missing formal step is the constitutive bridge that makes the modulus depend on those microscopic variables.",
+        candidateLatex:
+          "C_1(T,bpc,\\lambda)=C_{1,0}+a_S S(\\lambda,T)+a_l\\langle l\\rangle(\\lambda,T)\n" +
+          "C_2(T,bpc,\\lambda)=C_{2,0}+b_S S(\\lambda,T)+b_l\\langle l\\rangle(\\lambda,T)\n" +
+          "G(\\lambda,T,bpc)=2\\left(C_1+\\frac{C_2}{\\lambda}\\right)",
+        why: `Macro equations ${macroIds.slice(0, 4).join(", ") || "detected"} and microstructure equations ${microIds.slice(0, 4).join(", ") || "detected"} are present, but the bridge between them is not explicit.`,
+        falsifier: "Prepare samples with the same stretch, temperature and crosslink density but different orientation or stem-length distributions. If the fitted C1, C2 or G do not change, the proposed microscopic mechanism is descriptive rather than causal."
+      },
+      mechanismTransfer: {
+        title: "Transfer: deformation-written material memory",
+        sourceMechanism: "Stretch/cooling history writes a microstructural state; stress or modulus reads it later.",
+        targetExperiment: "Treat the material as a memory device: write by stretch/cooling, erase by reheating or relaxation, and read by stress response at matched stretch.",
+        targetLatex:
+          "m(t)=(S(t),\\langle l\\rangle(t))\n" +
+          "\\sigma_{true}(t)=2\\left(\\lambda^2-\\lambda^{-1}\\right)\\left[C_1(m)+\\frac{C_2(m)}{\\lambda}\\right]",
+        control: "History-shuffled controls should destroy the memory term while preserving the ordinary elastic fit."
+      },
+      reviewer: {
+        verdict: "Mechanism promising but not closed",
+        severity: "medium",
+        requiredFix: "Add the constitutive bridge from orientation/stem statistics to C1, C2 or G, and test it with matched-stretch controls.",
+        passCondition: "The same microscopic state variables must predict modulus changes across held-out deformation and temperature histories."
+      }
+    };
+  }
+
+  if (routeSet.has("spectral_operator") && routeSet.has("transport_flow") && !routeSet.has("constraint_closure")) {
+    return {
+      missingEquation: {
+        title: "Missing equation: operator domain or normalization",
+        claim: "The fragment evolves a state through an operator and then reads a spectrum or probability, but the admissible state space is not explicit.",
+        candidateLatex: "\\langle\\psi|\\psi\\rangle=1,\\qquad \\hat H:D(\\hat H)\\subset\\mathcal H\\to\\mathcal H",
+        why: "Operator evolution is not fully specified until the state normalization and operator domain are stated.",
+        falsifier: "A change of domain, normalization or boundary should change the admissible spectrum or probability rule; if it does not, the added condition is decorative."
+      },
+      mechanismTransfer: {
+        title: "Transfer: state-to-spectrum construction",
+        sourceMechanism: "A state is transported by a generator and then read through a spectrum or probability rule.",
+        targetExperiment: "Use the same construction in another field by naming the state, generator, admissible domain and readout separately.",
+        targetLatex: "\\partial_t q=Aq,\\qquad q\\in D(A),\\qquad y_i=\\langle q,\\Pi_i q\\rangle",
+        control: "Change the admissible domain while holding the generator notation fixed; the readout should change if the domain is causal."
+      },
+      reviewer: {
+        verdict: "Needs admissible-space statement",
+        severity: "medium",
+        requiredFix: "State the normalization, domain or boundary condition under which the operator and readout are valid.",
+        passCondition: "The stated admissible space must determine which modes or probabilities are legal."
+      }
+    };
+  }
+
+  if (routeSet.has("transport_flow") && !routeSet.has("constraint_closure")) {
+    return {
+      missingEquation: {
+        title: "Missing equation: closure for the transported quantity",
+        claim: "The fragment contains an evolution or flux law, but it does not yet say what conservation, constitutive relation or admissibility condition closes the dynamics.",
+        candidateLatex: "C(q,J,\\lambda)=0\\quad\\text{or}\\quad J=J(q,\\nabla q,B)",
+        why: "Transport without closure usually leaves many trajectories compatible with the same equation.",
+        falsifier: "Two different closures should make different predictions for the same initial and boundary data."
+      },
+      mechanismTransfer: {
+        title: "Transfer: transport-memory experiment",
+        sourceMechanism: "A state is transported or relaxed, but the law that selects admissible currents is missing.",
+        targetExperiment: "Use the transported state as a written memory and test whether changing the closure changes the readout.",
+        targetLatex: "\\partial_t q+\\nabla\\cdot J=0,\\qquad J=J(q,m,B)",
+        control: "Hold the input fixed and change only the closure or boundary; the output should change if the mechanism is real."
+      },
+      reviewer: {
+        verdict: "Mechanism underdetermined",
+        severity: "high",
+        requiredFix: "Specify the constitutive or conservation closure for the transported quantity.",
+        passCondition: "The added closure must reduce residual error or eliminate an ambiguity in the predicted state."
+      }
+    };
+  }
+
+  if (routeSet.has("spectral_operator") && !routeSet.has("discrete_protocol")) {
+    return {
+      missingEquation: {
+        title: "Missing equation: readout rule for the operator",
+        claim: "An operator or spectrum is present, but the fragment does not yet specify the measured output, probability rule, residual or current checkpoint.",
+        candidateLatex: "y_i=\\langle q,\\Pi_i q\\rangle\\quad\\text{or}\\quad R=\\|y_{model}-y_{data}\\|",
+        why: "Operator structure becomes testable only after a readout rule maps it to observed quantities.",
+        falsifier: "Two operators with the same fitted score but different readout predictions should be distinguishable by the proposed measurement."
+      },
+      mechanismTransfer: {
+        title: "Transfer: operator-to-readout experiment",
+        sourceMechanism: "A formal operator organizes possible modes, but a measurable readout is still needed.",
+        targetExperiment: "Choose a field-specific readout: stress, flux, phenotype, group decision, probability or spectrum.",
+        targetLatex: "\\mathcal L q=\\lambda q,\\qquad y=R(q,\\lambda,B)",
+        control: "Change the operator while holding substrate and boundary fixed; the readout should change predictably."
+      },
+      reviewer: {
+        verdict: "Prediction not yet observable",
+        severity: "medium",
+        requiredFix: "Add a readout equation that connects the operator to measured data.",
+        passCondition: "The readout must distinguish at least two operator choices or modes."
+      }
+    };
+  }
+
+  if (routeSet.has("constraint_closure") && !routeSet.has("boundary_weak_form")) {
+    return {
+      missingEquation: {
+        title: "Missing equation: realization boundary",
+        claim: "The fragment has an admissibility or closure relation, but the domain, boundary or weak-form realization is not explicit.",
+        candidateLatex: "\\int_\\Omega \\varphi\\,\\mathcal L q\\,dx=\\int_\\Omega \\varphi f\\,dx,\\qquad Bq=b",
+        why: "A closure relation can change meaning when the boundary or test space changes.",
+        falsifier: "Boundary swaps should alter the residual or allowed solution set if the boundary is part of the mechanism."
+      },
+      mechanismTransfer: {
+        title: "Transfer: boundary-gated mechanism",
+        sourceMechanism: "The same closure can be realized differently by changing the domain, interface or boundary rule.",
+        targetExperiment: "Move the closure into a material, biological or collective boundary and test whether the admissible response changes.",
+        targetLatex: "C(q,J,\\lambda;B)=0",
+        control: "Hold the internal law fixed while changing B; the readout should change only if the boundary is causal."
+      },
+      reviewer: {
+        verdict: "Needs realization layer",
+        severity: "medium",
+        requiredFix: "State the domain, boundary or weak form used by the closure.",
+        passCondition: "The same closure must produce reproducible predictions under the stated realization conditions."
+      }
+    };
+  }
+
+  return {
+    missingEquation: {
+      title: "Missing equation: explicit falsifier",
+      claim: "The detected chain has formal structure, but the public engine cannot yet identify a specific missing mechanism bridge.",
+      candidateLatex: "R(\\theta)=\\|y_{model}(\\theta)-y_{data}\\|",
+      why: "A residual or falsifier makes the mechanism operational even when the next algebraic move is ambiguous.",
+      falsifier: "State one perturbation that should break the claimed mechanism while leaving a superficial fit intact."
+    },
+    mechanismTransfer: {
+      title: "Transfer: role-preserving rewrite",
+      sourceMechanism: "Preserve the strongest route while changing substrate or field terminology.",
+      targetExperiment: "Choose a target field and rename only the carrier/readout, not the operator or closure role.",
+      targetLatex: "source: A(q)=y\\quad\\longrightarrow\\quad target: A'(q')=y'",
+      control: "If the predicted readout does not change under the target perturbation, the transfer is only analogy."
+    },
+    reviewer: {
+      verdict: "Needs sharper mechanism target",
+      severity: "review",
+      requiredFix: "Add one explicit bridge equation or one falsifying residual.",
+      passCondition: "The added equation must change a prediction, not only rephrase the same variables."
+    }
+  };
+}
+
 function mechanismStatement(nodes, aggregateRoutes, aggregateSubstrates) {
   if (!nodes.length) return "No clean equation mechanism was detected.";
   const routeNames = topScores(aggregateRoutes, ROUTES, 3).filter((item) => item.score > 0).map((item) => item.label);
@@ -725,6 +932,7 @@ export function analyzeText(inputText, options = {}) {
   const missing = missingRoles(equations);
   const nextMoves = predictNextMoves(equations, chain, missing);
   const atlasState = inferAtlasState(equations, chain, aggregateRoutes, aggregateSubstrates);
+  const outcome = buildOutcome(equations, chain, aggregateRoutes, aggregateSubstrates, inputText);
   const analysis = {
     schema: "equation_xray_v1",
     sourceName: options.sourceName || "pasted input",
@@ -736,6 +944,7 @@ export function analyzeText(inputText, options = {}) {
     missingRoles: missing,
     nextMoves,
     atlasState,
+    outcome,
     mechanism: mechanismStatement(equations, aggregateRoutes, aggregateSubstrates)
   };
   analysis.markdown = renderMarkdown(analysis);
@@ -758,6 +967,44 @@ export function renderMarkdown(analysis) {
   const missingLines = analysis.missingRoles.length
     ? analysis.missingRoles.map((role) => `- ${role.label}: ${role.why}`).join("\n")
     : "- No major route role is missing from the detected sequence.";
+  const outcome = analysis.outcome;
+  const outcomeLines = outcome
+    ? `## Missing Equation
+
+**${outcome.missingEquation.title}**
+
+${outcome.missingEquation.claim}
+
+\`\`\`latex
+${outcome.missingEquation.candidateLatex}
+\`\`\`
+
+Why this is the missing link: ${outcome.missingEquation.why}
+
+Falsifier: ${outcome.missingEquation.falsifier}
+
+## Mechanism Transfer
+
+**${outcome.mechanismTransfer.title}**
+
+Source mechanism: ${outcome.mechanismTransfer.sourceMechanism}
+
+Target experiment: ${outcome.mechanismTransfer.targetExperiment}
+
+\`\`\`latex
+${outcome.mechanismTransfer.targetLatex}
+\`\`\`
+
+Control: ${outcome.mechanismTransfer.control}
+
+## Equation Reviewer
+
+Verdict: **${outcome.reviewer.verdict}** (${outcome.reviewer.severity})
+
+Required fix: ${outcome.reviewer.requiredFix}
+
+Pass condition: ${outcome.reviewer.passCondition}`
+    : "";
   const equationLines = analysis.equations.length
     ? analysis.equations.map((equation) => {
         const routes = equation.activeRoutes.join(", ") || equation.topRoute;
@@ -779,6 +1026,8 @@ Source: ${analysis.sourceName}
 ${analysis.mechanism}
 
 Atlas state: **${analysis.atlasState.label}**. ${analysis.atlasState.meaning}
+
+${outcomeLines}
 
 ## Route Evidence
 

@@ -252,6 +252,61 @@ textarea {
   line-height: 1.4;
 }
 
+.outcome-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.outcome-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  background: #fdfdfb;
+}
+
+.primary-outcome {
+  border-color: rgba(170, 46, 46, 0.42);
+  background: #fff8f6;
+}
+
+.reviewer-card {
+  background: #f7faf8;
+}
+
+.outcome-card h3 {
+  margin: 3px 0 8px;
+  font-size: 16px;
+}
+
+.outcome-card p {
+  margin: 8px 0;
+  line-height: 1.4;
+  font-size: 13px;
+}
+
+.outcome-card pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.outcome-label {
+  margin: 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .token {
   display: inline-block;
   font-family:

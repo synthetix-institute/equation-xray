@@ -57,6 +57,12 @@ assert.equal(
   isCleanEquation(String.raw`The process is simulated in $25\times 10^6$ MD steps.`),
   false
 );
+assert.equal(isCleanEquation(String.raw`\documentclass[journal=mamobx,manuscript=reprint]{achemso}`), false);
+assert.equal(isCleanEquation(String.raw`\multirow{2}{*}{Cooling} & Solidification & $T_s$ & $\newmoon$\\`), false);
+assert.equal(
+  isCleanEquation(String.raw`We adopt the polymer melt configuration from our previous work~\cite{paper}, which consists of $n_{chain}=1000$ chains.`),
+  false
+);
 assert.equal(isCleanEquation(String.raw`\partial_t q+\nabla\cdot J=S`), true);
 assert.equal(isCleanEquation(String.raw`\label{eq:transport}\partial_t q+\nabla\cdot J=S`), true);
 
@@ -66,6 +72,25 @@ The process, as shown in Figure \ref{fig:protocol_deform}, is simulated in $25\t
 \partial_t q+\nabla\cdot J=S
 \]`);
 assert.equal(noisy.equationCount, 1);
+
+const polymer = analyzeText(String.raw`\[
+\lambda = L_x/L_{x,0}
+\]
+\[
+\sigma_{true} = \sigma_{xx} - \frac{\sigma_{yy}+\sigma_{zz}}{2}
+\]
+\[
+\frac{\sigma_{true}}{\lambda^2-\frac{1}{\lambda}} = 2\left(C_1+\frac{C_2}{\lambda}\right)
+\]
+\[
+S=(3\langle \cos^2\theta\rangle-1)/2
+\]
+\[
+P(l)=p_0(1-p_0)^l=p_0\exp(-l/l_0)
+\]`);
+assert.equal(polymer.outcome.missingEquation.title, "Missing equation: microstructure -> modulus");
+assert.ok(polymer.outcome.missingEquation.candidateLatex.includes("C_1"));
+assert.ok(polymer.outcome.mechanismTransfer.title.includes("deformation-written"));
 
 const transport = analyzeText(String.raw`\[
 \partial_t q+\nabla\cdot J=S

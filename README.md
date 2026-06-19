@@ -1,20 +1,23 @@
 # Equation X-Ray
 
-**Upload or paste equations. See the mechanism path hidden inside the formalism.**
+**Upload or paste equations. Find the missing equation.**
 
 Equation X-Ray is a standalone public companion prototype for mechanism-native
 scientific AI. It does not rank papers by semantic similarity. It reads equations
 as ordered construction moves: transport, closure, spectral/operator structure,
 boundary realization, incompatibility, and discrete protocol.
 
-The output is not a summary of a paper. It is a mechanism audit:
+The output is not a summary of a paper. It is a mechanism audit plus a concrete
+construction target:
 
 - which operational routes are active;
 - which substrate the operators appear to act on;
 - how adjacent equations change role;
 - which role is preserved, added, projected, or converted;
-- what the next construction move should probably be;
-- what is missing before the mechanism becomes testable.
+- which equation is missing before the mechanism becomes testable;
+- what candidate equation skeleton could close the gap;
+- what mechanism transfer or experiment would test the claim;
+- what a reviewer should ask the authors to add.
 
 This repository intentionally ships a lightweight deterministic engine, not the
 private Hyperion fingerprint database. The public contract is stable: a full
@@ -36,6 +39,7 @@ The central idea is simple:
 
 ```text
 equations -> operational roles -> morphism chain -> next construction move
+          -> missing equation -> falsifying test
 ```
 
 That makes it useful as a public, inspectable front end for mechanism transfer:
@@ -65,6 +69,20 @@ node bin/equation-xray.mjs examples/schrodinger.tex
 node bin/equation-xray.mjs examples/transport_closure.tex --json
 ```
 
+Example output:
+
+```text
+Missing equation: operator domain or normalization
+
+The fragment evolves a state through an operator and then reads a spectrum or
+probability, but the admissible state space is not explicit.
+
+\langle\psi|\psi\rangle=1,\qquad
+\hat H:D(\hat H)\subset\mathcal H\to\mathcal H
+
+Reviewer verdict: Needs admissible-space statement.
+```
+
 ## Scope
 
 This first public version is deterministic and local. It is designed for
@@ -79,6 +97,9 @@ It can already:
 - label six operational routes;
 - label substrate evidence separately from route evidence;
 - build ordered morphism-chain tokens;
+- generate a missing-equation card;
+- generate a mechanism-transfer card;
+- generate an equation-reviewer card;
 - predict next moves using a public approximation of the trained grammar
 contract.
 
@@ -102,6 +123,11 @@ The browser and CLI both return the same object:
   nextMoves: NextMove[],
   missingRoles: MissingRole[],
   atlasState: AtlasState,
+  outcome: {
+    missingEquation: MissingEquation,
+    mechanismTransfer: MechanismTransfer,
+    reviewer: ReviewerVerdict
+  },
   markdown: string
 }
 ```
