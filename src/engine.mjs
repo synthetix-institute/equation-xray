@@ -787,24 +787,24 @@ function buildOutcome(nodes, chain, aggregateRoutes, aggregateSubstrates, inputT
   if (routeSet.has("spectral_operator") && routeSet.has("transport_flow") && !routeSet.has("constraint_closure")) {
     return {
       missingEquation: {
-        title: "Missing equation: operator domain or normalization",
-        claim: "The fragment evolves a state through an operator and then reads a spectrum or probability, but the admissible state space is not explicit.",
-        candidateLatex: "\\langle\\psi|\\psi\\rangle=1,\\qquad \\hat H:D(\\hat H)\\subset\\mathcal H\\to\\mathcal H",
-        why: "Operator evolution is not fully specified until the state normalization and operator domain are stated.",
-        falsifier: "A change of domain, normalization or boundary should change the admissible spectrum or probability rule; if it does not, the added condition is decorative."
+        title: "Formal gap: admissible Hilbert space",
+        claim: "For this Schrödinger-style chain, the missing item is not a new physical law. The displayed evolution and eigenvalue equations need the Hilbert space, normalization and operator domain conditions that make the spectrum and probability rule well defined.",
+        candidateLatex: "\\|\\psi\\|_{\\mathcal H}=1,\\qquad \\psi\\in D(\\hat H),\\qquad \\hat H=\\hat H^\\dagger",
+        why: "The same differential expression can define different spectra under different domains or boundary conditions. The admissible-space statement is therefore part of the mechanism, not formatting.",
+        falsifier: "Use the same Hamiltonian notation with a different domain or boundary condition. If the spectrum or probabilities change, the admissible-space statement is causal; if they do not, it is decorative."
       },
       mechanismTransfer: {
-        title: "Transfer: state-to-spectrum construction",
-        sourceMechanism: "A state is transported by a generator and then read through a spectrum or probability rule.",
-        targetExperiment: "Use the same construction in another field by naming the state, generator, admissible domain and readout separately.",
-        targetLatex: "\\partial_t q=Aq,\\qquad q\\in D(A),\\qquad y_i=\\langle q,\\Pi_i q\\rangle",
-        control: "Change the admissible domain while holding the generator notation fixed; the readout should change if the domain is causal."
+        title: "Transfer: state -> generator -> readout",
+        sourceMechanism: "A state evolves under a generator; admissible domains select the legal modes; a readout rule assigns measurable weights or outputs.",
+        targetExperiment: "In another field, keep these roles separate: the evolving state, the generator, the admissible domain and the measured readout.",
+        targetLatex: "\\dot q=Aq,\\qquad q\\in D(A),\\qquad A v_i=\\lambda_i v_i,\\qquad y_i=R_i(q)",
+        control: "Change the admissible domain while holding the generator notation fixed. A real domain effect should change the modes or readout."
       },
       reviewer: {
-        verdict: "Needs admissible-space statement",
+        verdict: "Needs domain and normalization statement",
         severity: "medium",
-        requiredFix: "State the normalization, domain or boundary condition under which the operator and readout are valid.",
-        passCondition: "The stated admissible space must determine which modes or probabilities are legal."
+        requiredFix: "State the Hilbert space, normalization and domain or boundary condition under which the Hamiltonian and readout are valid.",
+        passCondition: "The added condition must determine the legal spectrum, modes or probabilities."
       }
     };
   }

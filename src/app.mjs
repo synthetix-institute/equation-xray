@@ -124,6 +124,100 @@ function renderMissingRoles(roles) {
     .join("");
 }
 
+function renderVerdict(analysis) {
+  const target = $("verdict-card");
+  if (!analysis?.outcome) {
+    target.innerHTML = "";
+    return;
+  }
+  const routes = topLabels(analysis.aggregateRoutes, ROUTES, 3);
+  const substrates = topLabels(analysis.aggregateSubstrates, SUBSTRATES, 2);
+  const missing = analysis.outcome.missingEquation;
+  const reviewer = analysis.outcome.reviewer;
+  target.innerHTML = `
+    <article class="verdict-card">
+      <p class="outcome-label">X-Ray Verdict</p>
+      <h3>${escapeHtml(missing.title)}</h3>
+      <p>${escapeHtml(missing.claim)}</p>
+      <div class="verdict-grid">
+        <div>
+          <span class="verdict-kicker">Detected mechanism</span>
+          <strong>${escapeHtml(routes.join(" + ") || "weakly classified construction")}</strong>
+          <p>${escapeHtml(substrates.join(" / ") || "substrate not explicit")}</p>
+        </div>
+        <div>
+          <span class="verdict-kicker">Reviewer action</span>
+          <strong>${escapeHtml(reviewer.verdict)}</strong>
+          <p>${escapeHtml(reviewer.requiredFix)}</p>
+        </div>
+      </div>
+      <p><strong>Why</strong> ${escapeHtml(missing.why)}</p>
+      <p><strong>Falsifier</strong> ${escapeHtml(missing.falsifier)}</p>
+    </article>
+  `;
+}
+
+function topLabels(scores, specs, limit) {
+  return [...specs]
+    .map((spec) => ({ ...spec, score: scores[spec.id] || 0 }))
+    .filter((spec) => spec.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((spec) => spec.label);
+}
+
+function renderConstructionLane(analysis) {
+  const target = $("construction-lane");
+  if (!analysis?.equations?.length || !analysis.outcome) {
+    target.innerHTML = "<div class=\"lane-empty\">No construction lane available.</div>";
+    return;
+  }
+  const insertIndex = missingInsertionIndex(analysis);
+  const cards = [];
+  analysis.equations.forEach((node, index) => {
+    if (index === insertIndex) cards.push(renderMissingInsert(analysis));
+    cards.push(renderLaneNode(node));
+  });
+  if (insertIndex >= analysis.equations.length) cards.push(renderMissingInsert(analysis));
+  target.innerHTML = cards.join("");
+}
+
+function missingInsertionIndex(analysis) {
+  const title = analysis.outcome.missingEquation.title.toLowerCase();
+  if (title.includes("hilbert") || title.includes("domain") || title.includes("normalization")) return 0;
+  if (title.includes("microstructure")) {
+    const firstMacro = analysis.equations.findIndex((node) => /C_1|C_2|G\s*\(|\\sigma/i.test(node.formula));
+    return firstMacro >= 0 ? firstMacro : analysis.equations.length;
+  }
+  if (title.includes("closure")) {
+    const firstTransport = analysis.equations.findIndex((node) => node.activeRoutes.includes("transport_flow"));
+    return firstTransport >= 0 ? firstTransport + 1 : analysis.equations.length;
+  }
+  return analysis.equations.length;
+}
+
+function renderMissingInsert(analysis) {
+  const missing = analysis.outcome.missingEquation;
+  return `
+    <article class="lane-card lane-missing">
+      <span class="lane-id">Insert</span>
+      <h4>${escapeHtml(missing.title)}</h4>
+      ${latexStack(missing.candidateLatex)}
+    </article>
+  `;
+}
+
+function renderLaneNode(node) {
+  const route = routeLabel(node.topRoute);
+  return `
+    <article class="lane-card">
+      <span class="lane-id">${node.id}</span>
+      ${latexBlock(node.formula)}
+      <span class="tag">${escapeHtml(route)}</span>
+    </article>
+  `;
+}
+
 function renderEquationNodes(nodes) {
   const target = $("equation-nodes");
   if (!nodes.length) {
@@ -138,7 +232,7 @@ function renderEquationNodes(nodes) {
       return `
         <article class="equation-node">
           <strong>${node.id}</strong>
-          <pre>${escapeHtml(node.formula)}</pre>
+          ${latexBlock(node.formula)}
           <div class="node-meta">
             ${routes.map((label) => `<span class="tag">${label}</span>`).join("")}
             ${substrates.map((label) => `<span class="tag">${label}</span>`).join("")}
@@ -163,20 +257,12 @@ function renderOutcome(outcome) {
     return;
   }
   target.innerHTML = `
-    <article class="outcome-card primary-outcome">
-      <p class="outcome-label">Missing equation</p>
-      <h3>${escapeHtml(outcome.missingEquation.title)}</h3>
-      <p>${escapeHtml(outcome.missingEquation.claim)}</p>
-      <pre>${escapeHtml(outcome.missingEquation.candidateLatex)}</pre>
-      <p><strong>Why</strong> ${escapeHtml(outcome.missingEquation.why)}</p>
-      <p><strong>Falsifier</strong> ${escapeHtml(outcome.missingEquation.falsifier)}</p>
-    </article>
     <article class="outcome-card">
       <p class="outcome-label">Mechanism transfer</p>
       <h3>${escapeHtml(outcome.mechanismTransfer.title)}</h3>
       <p><strong>Source</strong> ${escapeHtml(outcome.mechanismTransfer.sourceMechanism)}</p>
       <p><strong>Target</strong> ${escapeHtml(outcome.mechanismTransfer.targetExperiment)}</p>
-      <pre>${escapeHtml(outcome.mechanismTransfer.targetLatex)}</pre>
+      ${latexStack(outcome.mechanismTransfer.targetLatex)}
       <p><strong>Control</strong> ${escapeHtml(outcome.mechanismTransfer.control)}</p>
     </article>
     <article class="outcome-card reviewer-card">
@@ -186,6 +272,33 @@ function renderOutcome(outcome) {
       <p><strong>Pass</strong> ${escapeHtml(outcome.reviewer.passCondition)}</p>
     </article>
   `;
+}
+
+function latexStack(value) {
+  const lines = String(value || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return "";
+  return `<div class="latex-stack">${lines.map((line) => latexBlock(line)).join("")}</div>`;
+}
+
+function latexBlock(value) {
+  const source = String(value || "").trim();
+  if (!source) return "";
+  const fallback = `<pre class="math-fallback">${escapeHtml(source)}</pre>`;
+  const katex = window.katex;
+  if (!katex?.renderToString) return fallback;
+  try {
+    return `<div class="math-render" data-latex="${escapeHtml(source)}">${katex.renderToString(source, {
+      displayMode: true,
+      throwOnError: false,
+      strict: "ignore",
+      trust: false
+    })}</div>`;
+  } catch {
+    return fallback;
+  }
 }
 
 function escapeHtml(value) {
@@ -201,10 +314,12 @@ function renderAnalysis(analysis) {
   $("equation-count").textContent = String(analysis.equationCount);
   $("atlas-state").textContent = analysis.atlasState.label;
   $("status-pill").textContent = `${analysis.equationCount} equation nodes`;
+  renderVerdict(analysis);
   renderBars($("route-bars"), analysis.aggregateRoutes, ROUTES);
   renderBars($("substrate-bars"), analysis.aggregateSubstrates, SUBSTRATES, "substrate");
   renderChain(analysis.chain);
   renderOutcome(analysis.outcome);
+  renderConstructionLane(analysis);
   renderNextMoves(analysis.nextMoves);
   renderMissingRoles(analysis.missingRoles);
   renderEquationNodes(analysis.equations);
@@ -252,6 +367,9 @@ function installHandlers() {
     state.sourceName = file.name;
     $("source-input").value = await file.text();
     analyzeCurrentInput();
+  });
+  window.addEventListener("load", () => {
+    if (state.analysis && window.katex?.renderToString) renderAnalysis(state.analysis);
   });
 }
 

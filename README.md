@@ -93,15 +93,18 @@ node bin/equation-xray.mjs examples/transport_closure.tex --json
 Example output:
 
 ```text
-Missing equation: operator domain or normalization
+Formal gap: admissible Hilbert space
 
-The fragment evolves a state through an operator and then reads a spectrum or
-probability, but the admissible state space is not explicit.
+For this Schrödinger-style chain, the missing item is not a new physical law.
+The displayed evolution and eigenvalue equations need the Hilbert space,
+normalization and operator domain conditions that make the spectrum and
+probability rule well defined.
 
-\langle\psi|\psi\rangle=1,\qquad
-\hat H:D(\hat H)\subset\mathcal H\to\mathcal H
+\|\psi\|_{\mathcal H}=1,\qquad
+\psi\in D(\hat H),\qquad
+\hat H=\hat H^\dagger
 
-Reviewer verdict: Needs admissible-space statement.
+Reviewer verdict: Needs domain and normalization statement.
 ```
 
 ## Scope

@@ -40,6 +40,8 @@ assert.ok([
 
 const analysis = analyzeText(schrodinger, { sourceName: "test" });
 assert.equal(analysis.equationCount, 3);
+assert.equal(analysis.outcome.missingEquation.title, "Formal gap: admissible Hilbert space");
+assert.equal(analysis.outcome.reviewer.verdict, "Needs domain and normalization statement");
 assert.ok(analysis.nextMoves.length > 0);
 assert.ok(analysis.equations[0].localPrediction.predictedToken);
 assert.ok(analysis.equations[0].localPrediction.rewrite.includes("Project"));
