@@ -347,7 +347,7 @@ textarea {
   border-top: 0;
 }
 
-.card-field span {
+.card-field > span {
   display: block;
   color: var(--muted);
   text-transform: uppercase;

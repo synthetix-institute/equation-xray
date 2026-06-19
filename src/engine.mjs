@@ -1,4 +1,6 @@
 const MIN_FORMULA_LENGTH = 8;
+const UNCLASSIFIED_ROUTE = "unclassified";
+const UNCLASSIFIED_ROUTE_LABEL = "Unclassified equation core";
 
 export const ROUTES = [
   {
@@ -449,6 +451,7 @@ export function scoreEquation(formula, index = 0) {
   const activeRoutes = activeFromScores(routeScores, ROUTES);
   const activeSubstrates = activeFromScores(substrateScores, SUBSTRATES);
   const topRoute = topFromScores(routeScores, ROUTES);
+  const topRouteScore = routeScores[topRoute.id] || 0;
   const topSubstrate = topFromScores(substrateScores, SUBSTRATES);
   const readoutScore = clamp01(matchScore(formula, [
     /\bJ\b|\\mathbf\s*\{?\s*J\s*\}?/,
@@ -463,7 +466,7 @@ export function scoreEquation(formula, index = 0) {
     substrateScores,
     activeRoutes: activeRoutes.map((route) => route.id),
     activeSubstrates: activeSubstrates.map((substrate) => substrate.id),
-    topRoute: topRoute.id,
+    topRoute: topRouteScore > 0 ? topRoute.id : UNCLASSIFIED_ROUTE,
     topSubstrate: topSubstrate.id,
     routeEntropy: Number(entropy(routeScores).toFixed(3)),
     substrateEntropy: Number(entropy(substrateScores).toFixed(3)),
@@ -486,7 +489,16 @@ export function compareEquations(before, after) {
 
   let action = "preserve";
   let route = afterTop;
-  if (added.length && added.length >= removed.length) {
+  if (beforeTop === UNCLASSIFIED_ROUTE && afterTop !== UNCLASSIFIED_ROUTE) {
+    action = "add";
+    route = afterTop;
+  } else if (beforeTop !== UNCLASSIFIED_ROUTE && afterTop === UNCLASSIFIED_ROUTE) {
+    action = "project";
+    route = beforeTop;
+  } else if (beforeTop === UNCLASSIFIED_ROUTE && afterTop === UNCLASSIFIED_ROUTE) {
+    action = "preserve";
+    route = UNCLASSIFIED_ROUTE;
+  } else if (added.length && added.length >= removed.length) {
     action = "add";
     route = added.sort((a, b) => scoreDelta(before.routeScores, after.routeScores, b) - scoreDelta(before.routeScores, after.routeScores, a))[0];
   } else if (removed.length && preserved.length) {
@@ -663,14 +675,18 @@ function predictNextMoves(nodes, chain, missing) {
 }
 
 function localEquationPrediction(node, incomingMove, outgoingMove) {
-  const routeSet = new Set(node.activeRoutes.length ? node.activeRoutes : [node.topRoute]);
+  const routeSet = new Set(node.activeRoutes);
   const substrate = substrateLabel(node.topSubstrate);
   const observed = outgoingMove ? outgoingMove.token : null;
   let predictedToken = "preserve_constraint_closure";
   let rewrite = "Keep the formal role stable and make the next equation expose what changes, what is preserved, and what is measured.";
   let check = "Compare the role before and after the rewrite; reject the move if only notation changes.";
 
-  if (routeSet.has("transport_flow")) {
+  if (!routeSet.size) {
+    predictedToken = "needs_route_classification";
+    rewrite = "Do not promote this formula to transport, closure, spectrum, boundary, incompatibility, or protocol unless a neighboring equation supplies that role.";
+    check = "Treat scalar definitions, order parameters, labels, and fitted constants as supporting quantities until they enter a mechanism equation.";
+  } else if (routeSet.has("transport_flow")) {
     if (routeSet.has("spectral_operator")) {
       predictedToken = "project_spectral_operator";
       rewrite = "Project the evolution equation onto modes, eigenfunctions, rates, or a generator spectrum; keep the evolving state explicit.";
@@ -789,7 +805,10 @@ function buildOutcome(nodes, chain, aggregateRoutes, aggregateSubstrates, inputT
       missingEquation: {
         title: "Formal gap: admissible Hilbert space",
         claim: "For this Schrödinger-style chain, the missing item is not a new physical law. The displayed evolution and eigenvalue equations need the Hilbert space, normalization and operator domain conditions that make the spectrum and probability rule well defined.",
-        candidateLatex: "\\|\\psi\\|_{\\mathcal H}=1,\\qquad \\psi\\in D(\\hat H),\\qquad \\hat H=\\hat H^\\dagger",
+        candidateLatex:
+          "\\lVert\\psi\\rVert_{\\mathcal H}=1\n" +
+          "\\psi\\in D(\\hat H)\n" +
+          "\\hat H=\\hat H^\\dagger",
         why: "The same differential expression can define different spectra under different domains or boundary conditions. The admissible-space statement is therefore part of the mechanism, not formatting.",
         falsifier: "Use the same Hamiltonian notation with a different domain or boundary condition. If the spectrum or probabilities change, the admissible-space statement is causal; if they do not, it is decorative."
       },
@@ -1118,6 +1137,7 @@ ${equationLines}
 }
 
 export function routeLabel(id) {
+  if (id === UNCLASSIFIED_ROUTE) return UNCLASSIFIED_ROUTE_LABEL;
   return ROUTES.find((route) => route.id === id)?.label || id;
 }
 

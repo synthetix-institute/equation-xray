@@ -215,7 +215,7 @@ function renderShareCard(analysis) {
 
 function equationPreview(value) {
   const text = String(value || "").trim();
-  return `<pre class="obligation-code">${escapeHtml(text)}</pre>`;
+  return latexStack(text, { compact: true });
 }
 
 function topLabels(scores, specs, limit) {
@@ -353,7 +353,8 @@ function latexBlock(value, options = {}) {
   try {
     const compact = Boolean(options.compact);
     return `<div class="math-render ${compact ? "compact-math" : ""}" data-latex="${escapeHtml(source)}">${katex.renderToString(source, {
-      displayMode: !compact,
+      displayMode: true,
+      output: "html",
       throwOnError: false,
       strict: "ignore",
       trust: false

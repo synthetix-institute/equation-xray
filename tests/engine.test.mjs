@@ -4,6 +4,7 @@ import {
   compareEquations,
   extractEquations,
   isCleanEquation,
+  routeLabel,
   scoreEquation
 } from "../src/engine.mjs";
 
@@ -96,6 +97,11 @@ P(l)=p_0(1-p_0)^l=p_0\exp(-l/l_0)
 assert.equal(polymer.outcome.missingEquation.title, "Missing equation: microstructure -> modulus");
 assert.ok(polymer.outcome.missingEquation.candidateLatex.includes("C_1"));
 assert.ok(polymer.outcome.mechanismTransfer.title.includes("deformation-written"));
+const orderParameter = polymer.equations.find((node) => node.formula.includes("cos^2"));
+assert.equal(orderParameter.topRoute, "unclassified");
+assert.deepEqual(orderParameter.activeRoutes, []);
+assert.equal(routeLabel(orderParameter.topRoute), "Unclassified equation core");
+assert.equal(orderParameter.localPrediction.predictedToken, "needs_route_classification");
 
 const transport = analyzeText(String.raw`\[
 \partial_t q+\nabla\cdot J=S
