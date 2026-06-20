@@ -199,8 +199,8 @@ function renderShareCard(analysis) {
         <span>Missing</span>
         <strong>${escapeHtml(share.missing)}</strong>
       </div>
-      <div class="card-field">
-        <span>Required equation</span>
+      <div class="card-field prediction-field">
+        <span>Predicted next formula</span>
         ${equationPreview(share.nextEquation)}
       </div>
       <div class="card-field evidence-field">
@@ -247,8 +247,8 @@ function missingInsertionIndex(analysis) {
   const title = analysis.outcome.missingEquation.title.toLowerCase();
   if (title.includes("hilbert") || title.includes("domain") || title.includes("normalization")) return 0;
   if (title.includes("microstructure")) {
-    const firstMacro = analysis.equations.findIndex((node) => /C_1|C_2|G\s*\(|\\sigma/i.test(node.formula));
-    return firstMacro >= 0 ? firstMacro : analysis.equations.length;
+    const firstMicro = analysis.equations.findIndex((node) => /S\s*=|P\s*\(\s*l\s*\)|l_0|\\langle\\cos/i.test(node.formula));
+    return firstMicro >= 0 ? firstMicro : analysis.equations.length;
   }
   if (title.includes("closure")) {
     const firstTransport = analysis.equations.findIndex((node) => node.activeRoutes.includes("transport_flow"));
@@ -259,11 +259,14 @@ function missingInsertionIndex(analysis) {
 
 function renderMissingInsert(analysis) {
   const missing = analysis.outcome.missingEquation;
+  const share = analysis.shareCard;
   return `
-    <article class="lane-card lane-missing">
-      <span class="lane-id">Insert</span>
+    <article class="lane-card lane-missing lane-gap">
+      <span class="lane-id">Gap</span>
+      <p class="gap-kicker">Missing step detected here</p>
       <h4>${escapeHtml(missing.title)}</h4>
-      ${latexStack(missing.candidateLatex, { compact: true })}
+      <p>${escapeHtml(share?.missing || missing.title)}</p>
+      <p class="gap-note">The predicted formula is highlighted above; this lane marks where it enters the observed chain.</p>
     </article>
   `;
 }
@@ -453,7 +456,7 @@ function shareCardText(analysis) {
     `Substrate evidence: ${share.substrate}`,
     `Missing: ${share.missing}`,
     "",
-    "Required equation:",
+    "Predicted next formula:",
     share.nextEquation,
     "",
     `Evidence: ${share.evidence}`,
@@ -488,7 +491,7 @@ function buildShareSvg(analysis) {
     ["Present", share.present],
     ["Substrate evidence", share.substrate],
     ["Missing", share.missing],
-    ["Required equation", share.nextEquation],
+    ["Predicted next formula", share.nextEquation],
     ["Evidence", `${share.evidence} ${share.grammarEvidence}`],
     ["Scope", share.scope]
   ];
@@ -496,10 +499,10 @@ function buildShareSvg(analysis) {
   const body = rows.map(([label, value]) => {
     const labelY = y;
     y += 36;
-    const lines = wrapText(value, label === "Required equation" ? 82 : 94).slice(0, label === "Evidence" ? 4 : 3);
+    const lines = wrapText(value, label === "Predicted next formula" ? 82 : 94).slice(0, label === "Evidence" ? 4 : 3);
     const text = lines.map((line, index) => {
-      const family = label === "Required equation" ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : "Inter, system-ui, sans-serif";
-      const size = label === "Required equation" ? 25 : 27;
+      const family = label === "Predicted next formula" ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : "Inter, system-ui, sans-serif";
+      const size = label === "Predicted next formula" ? 25 : 27;
       return `<text x="82" y="${y + index * 34}" fill="#171717" font-family="${family}" font-size="${size}" font-weight="${index === 0 && label === "Missing" ? "800" : "500"}">${escapeXml(line)}</text>`;
     }).join("\n");
     y += lines.length * 34 + 28;

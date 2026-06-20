@@ -374,6 +374,23 @@ textarea {
   color: var(--red);
 }
 
+.prediction-field {
+  background: #fffaf1;
+  border: 1px solid rgba(138, 100, 27, 0.28);
+  border-radius: 6px;
+  margin: 10px 0;
+  padding: 10px;
+}
+
+.prediction-field > span {
+  color: var(--gold);
+}
+
+.prediction-field .math-render {
+  border-color: rgba(138, 100, 27, 0.35);
+  margin-bottom: 0;
+}
+
 .evidence-field p {
   color: var(--ink);
 }
@@ -559,6 +576,29 @@ textarea {
 .lane-missing .lane-id {
   border-color: rgba(170, 46, 46, 0.45);
   color: var(--red);
+}
+
+.lane-gap {
+  border-style: dashed;
+}
+
+.lane-gap p {
+  margin: 5px 0;
+  color: #30343a;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.lane-gap .gap-kicker {
+  color: var(--red);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.lane-gap .gap-note {
+  color: var(--muted);
 }
 
 .lane-empty {
