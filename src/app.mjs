@@ -5,6 +5,7 @@ import {
   routeLabel,
   substrateLabel
 } from "./engine.mjs";
+import { buildShareSvg } from "./share-svg.mjs";
 
 const samples = {
   schrodinger: String.raw`\[
@@ -481,63 +482,6 @@ function downloadShareSvg() {
   setTimeout(() => {
     $("download-card-button").textContent = "SVG";
   }, 3000);
-}
-
-function buildShareSvg(analysis) {
-  const share = analysis.shareCard;
-  const width = 1200;
-  const height = 760;
-  const rows = [
-    ["Present", share.present],
-    ["Substrate evidence", share.substrate],
-    ["Missing", share.missing],
-    ["Predicted next formula", share.nextEquation],
-    ["Evidence", `${share.evidence} ${share.grammarEvidence}`],
-    ["Scope", share.scope]
-  ];
-  let y = 154;
-  const body = rows.map(([label, value]) => {
-    const labelY = y;
-    y += 36;
-    const lines = wrapText(value, label === "Predicted next formula" ? 82 : 94).slice(0, label === "Evidence" ? 4 : 3);
-    const text = lines.map((line, index) => {
-      const family = label === "Predicted next formula" ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : "Inter, system-ui, sans-serif";
-      const size = label === "Predicted next formula" ? 25 : 27;
-      return `<text x="82" y="${y + index * 34}" fill="#171717" font-family="${family}" font-size="${size}" font-weight="${index === 0 && label === "Missing" ? "800" : "500"}">${escapeXml(line)}</text>`;
-    }).join("\n");
-    y += lines.length * 34 + 28;
-    return `
-      <text x="82" y="${labelY}" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="800" letter-spacing="2.5">${escapeXml(label.toUpperCase())}</text>
-      ${text}
-    `;
-  }).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <rect width="1200" height="760" fill="#f7f7f4"/>
-  <rect x="42" y="42" width="1116" height="676" rx="22" fill="#ffffff" stroke="#d7d7d0"/>
-  <rect x="42" y="42" width="12" height="676" rx="6" fill="#2457a6"/>
-  <text x="82" y="92" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="800" letter-spacing="2.5">EQUATION X-RAY</text>
-  <text x="82" y="128" fill="#171717" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="900">${escapeXml(share.headline)}</text>
-  ${body}
-  <text x="82" y="700" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="18">Mechanism-native scientific AI · synthetix-institute.github.io/equation-xray</text>
-</svg>`;
-}
-
-function wrapText(value, maxChars) {
-  const words = String(value || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  const lines = [];
-  let current = "";
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length > maxChars && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = next;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length ? lines : [""];
 }
 
 function escapeXml(value) {

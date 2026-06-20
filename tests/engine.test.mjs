@@ -7,6 +7,7 @@ import {
   routeLabel,
   scoreEquation
 } from "../src/engine.mjs";
+import { buildShareSvg, latexToShareFormula } from "../src/share-svg.mjs";
 
 const schrodinger = String.raw`\[
 i\hbar \partial_t \psi(x,t)=\hat H\psi(x,t)
@@ -102,6 +103,14 @@ assert.equal(orderParameter.topRoute, "unclassified");
 assert.deepEqual(orderParameter.activeRoutes, []);
 assert.equal(routeLabel(orderParameter.topRoute), "Unclassified equation core");
 assert.equal(orderParameter.localPrediction.predictedToken, "needs_route_classification");
+assert.equal(latexToShareFormula(String.raw`C_1(T,bpc,\lambda)=C_{1,0}+a_S S(\lambda,T)`), "C_1(T,bpc,λ)=C_1,0+a_S·S(λ,T)");
+const shareSvg = buildShareSvg(polymer);
+assert.ok(shareSvg.includes("This paper has a missing formula."));
+assert.ok(shareSvg.includes("NOT A SUMMARY: EQUATION-CHAIN TEST"));
+assert.ok(shareSvg.includes("PREDICTED NEXT FORMULA"));
+assert.ok(shareSvg.includes("baseline-shift=\"sub\""));
+assert.ok(shareSvg.includes("C</tspan><tspan baseline-shift=\"sub\""));
+assert.equal(shareSvg.includes("\\lambda"), false);
 
 const transport = analyzeText(String.raw`\[
 \partial_t q+\nabla\cdot J=S
