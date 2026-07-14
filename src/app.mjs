@@ -180,6 +180,42 @@ function renderVerdict(analysis) {
   `;
 }
 
+
+function renderHiddenConstruction(analysis) {
+  const target = $("hidden-construction-card");
+  const hidden = analysis?.hiddenConstruction;
+  if (!hidden) {
+    target.innerHTML = "";
+    return;
+  }
+  const probability = Math.round((hidden.nextMoveProbability || 0) * 100);
+  target.innerHTML = `
+    <article class="hidden-card">
+      <p class="outcome-label">Book X-Ray finding</p>
+      <h3>${escapeHtml(hidden.biasLabel)}</h3>
+      <p>${escapeHtml(hidden.biasClaim)}</p>
+      <div class="hidden-grid">
+        <div>
+          <span>Displayed construction</span>
+          <strong>${escapeHtml(hidden.present)}</strong>
+          <p>${escapeHtml(hidden.substrate)}</p>
+        </div>
+        <div>
+          <span>Hidden dependency</span>
+          <strong>${escapeHtml(hidden.missingRole)}</strong>
+          <p>${escapeHtml(hidden.biasVisual)}</p>
+        </div>
+        <div>
+          <span>Next formal move</span>
+          <strong>${escapeHtml(hidden.nextMove)}</strong>
+          <p>${probability ? `${probability}% grammar prior` : "no stable grammar prior"}</p>
+        </div>
+      </div>
+      <p class="hidden-reader-line">${escapeHtml(hidden.readerLine)}</p>
+    </article>
+  `;
+}
+
 function renderShareCard(analysis) {
   const target = $("share-card");
   const share = analysis?.shareCard;
@@ -377,11 +413,12 @@ function escapeHtml(value) {
 }
 
 function renderAnalysis(analysis) {
-  $("mechanism-summary").textContent = analysis.mechanism;
+  $("mechanism-brief").textContent = analysis.mechanism;
   $("equation-count").textContent = String(analysis.equationCount);
   $("atlas-state").textContent = analysis.atlasState.label;
   $("status-pill").textContent = `${analysis.equationCount} equation nodes`;
   renderVerdict(analysis);
+  renderHiddenConstruction(analysis);
   renderShareCard(analysis);
   renderBars($("route-bars"), analysis.aggregateRoutes, ROUTES);
   renderBars($("substrate-bars"), analysis.aggregateSubstrates, SUBSTRATES, "substrate");

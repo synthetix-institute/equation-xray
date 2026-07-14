@@ -44,7 +44,9 @@ const analysis = analyzeText(schrodinger, { sourceName: "test" });
 assert.equal(analysis.equationCount, 3);
 assert.equal(analysis.outcome.missingEquation.title, "Formal gap: admissible Hilbert space");
 assert.equal(analysis.outcome.reviewer.verdict, "Needs domain and normalization statement");
-assert.equal(analysis.shareCard.headline, "Find the missing equation.");
+assert.equal(analysis.shareCard.headline, "This theory makes a hidden jump.");
+assert.equal(analysis.hiddenConstruction.biasLabel, "domain invisibility");
+assert.equal(analysis.hiddenConstruction.missingRole, "admissible space / operator domain");
 assert.ok(analysis.shareCard.nextEquation.includes("\\psi"));
 assert.ok(analysis.shareCard.grammarEvidence.includes("Top grammar continuation"));
 assert.ok(analysis.nextMoves.length > 0);
@@ -104,13 +106,19 @@ assert.deepEqual(orderParameter.activeRoutes, []);
 assert.equal(routeLabel(orderParameter.topRoute), "Unclassified equation core");
 assert.equal(orderParameter.localPrediction.predictedToken, "needs_route_classification");
 assert.equal(latexToShareFormula(String.raw`C_1(T,bpc,\lambda)=C_{1,0}+a_S S(\lambda,T)`), "C_1(T,bpc,λ)=C_1,0+a_S·S(λ,T)");
+assert.equal(latexToShareFormula(String.raw`\lVert\psi\rVert_{\mathcal H}=1`), "∥ψ∥_ℋ=1");
+assert.equal(latexToShareFormula(String.raw`a_l\langle l\rangle(\lambda,T)`), "a_l·l̄(λ,T)");
 const shareSvg = buildShareSvg(polymer);
-assert.ok(shareSvg.includes("This paper has a missing formula."));
-assert.ok(shareSvg.includes("NOT A SUMMARY: EQUATION-CHAIN TEST"));
-assert.ok(shareSvg.includes("PREDICTED NEXT FORMULA"));
+assert.ok(shareSvg.includes("This theory makes a hidden jump."));
+assert.ok(shareSvg.includes("This theory makes a hidden jump."));
+assert.ok(shareSvg.includes("EQUATION TO ADD"));
 assert.ok(shareSvg.includes("baseline-shift=\"sub\""));
 assert.ok(shareSvg.includes("C</tspan><tspan baseline-shift=\"sub\""));
 assert.equal(shareSvg.includes("\\lambda"), false);
+assert.equal(shareSvg.includes("⟨ l⟩"), false);
+assert.ok(shareSvg.includes("Lstem"));
+assert.ok(shareSvg.includes("microstructure"));
+assert.ok(shareSvg.includes("response"));
 
 const transport = analyzeText(String.raw`\[
 \partial_t q+\nabla\cdot J=S
@@ -119,5 +127,24 @@ const transport = analyzeText(String.raw`\[
 C(q,J,\lambda)=0
 \]`);
 assert.ok(transport.missingRoles.some((role) => role.id === "boundary_weak_form"));
+
+const diffusionTransfer = analyzeText(String.raw`\[
+\partial_t u=\kappa\nabla^2u,\qquad \nabla u\cdot n|_{\partial V}=0
+\]
+\[
+\frac{d}{dt}\int_Vu\,dV=0
+\]
+\[
+\dot{\mathbf u}=-\kappa L_G\mathbf u,\qquad L_G\mathbf 1=0
+\]
+\[
+\frac{d}{dt}\left(\frac12\mathbf u^TL_G\mathbf u\right)
+=-\kappa\mathbf u^TL_G^2\mathbf u\leq0
+\]`);
+assert.ok(diffusionTransfer.equations.some((node) => node.activeSubstrates.includes("graph_topology")));
+assert.equal(diffusionTransfer.outcome.reviewer.verdict, "Operational transfer contract complete");
+assert.ok(diffusionTransfer.outcome.mechanismTransfer.title.includes("continuum diffusion"));
+assert.equal(diffusionTransfer.hiddenConstruction.biasLabel, "completed transfer contract");
+assert.equal(diffusionTransfer.shareCard.headline, "This mechanism changes carrier.");
 
 console.log("engine tests passed");

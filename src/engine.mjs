@@ -168,6 +168,7 @@ export const SUBSTRATES = [
     cues: [
       /\bgraph|node|edge|network|adjacency\b/i,
       /\bA\s*_\s*\{?\s*i\s*j\s*\}?/,
+      /\bL\s*_\s*\{?\s*[Gg]\s*\}?/,
       /\\mathcal\s*\{?\s*G\s*\}?/,
       /\bLaplacian\b/i
     ]
@@ -767,6 +768,44 @@ function buildOutcome(nodes, chain, aggregateRoutes, aggregateSubstrates, inputT
   const polymerStress = hasAny(allText, [/\\sigma\s*_\s*\{?\s*true\s*\}?/i, /sigma_?\{?true\}?/i, /Mooney/i, /C_1|C_2/]);
   const stretch = hasAny(allText, [/\\lambda/i, /L_\s*\{?\s*x\s*\}?\/L_\s*\{?\s*x,?0\s*\}?/i]);
   const microstructure = hasAny(allText, [/S\s*=\s*\(3\\langle\\cos/i, /P\s*\(\s*l\s*\)/, /l_0/i, /stem|crystallinity|orientation/i]);
+  const continuumDiffusion = hasAny(allText, [
+    /\\partial\s*_?\s*\{?t\}?[\s\S]{0,120}(?:\\nabla\s*\^\s*\{?2\}?|\\Delta)/i
+  ]);
+  const graphDiffusion = hasAny(allText, [
+    /(?:\\dot\s*\{|\\partial\s*_?\s*\{?t\}?)[\s\S]{0,120}L\s*_\s*\{?\s*[Gg]\s*\}?/i
+  ]);
+  const massGate = hasAny(allText, [
+    /\\mathbf\s*\{?1\}?\s*\^\s*\{?\\mathsf\s*\{?T\}?\}?[\s\S]{0,80}\\mathbf\s*\{?u\}?/i,
+    /\\int[\s\S]{0,100}u[\s\S]{0,80}=\s*0/i
+  ]);
+  const dissipationGate = hasAny(allText, [
+    /L\s*_\s*\{?\s*[Gg]\s*\}?[\s\S]{0,180}(?:\\leq|\\le)\s*0/i
+  ]);
+
+  if (continuumDiffusion && graphDiffusion && massGate && dissipationGate) {
+    return {
+      missingEquation: {
+        title: "No formal gap detected in the diffusion transfer contract",
+        claim: "The fragment states continuum and graph diffusion together with conservation and dissipation checkpoints.",
+        candidateLatex: "L_G\\mathbf 1=0,\\qquad \\frac{d}{dt}\\left(\\frac12\\mathbf u^T L_G\\mathbf u\\right)\\leq0",
+        why: "The operator changes realization while the two operational tests remain explicit.",
+        falsifier: "Replace the graph Laplacian by adjacency alone or reverse the generator sign; at least one checkpoint must fail."
+      },
+      mechanismTransfer: {
+        title: "Transfer: continuum diffusion -> graph diffusion",
+        sourceMechanism: "A conservative dissipative evolution acts on a continuous domain.",
+        targetExperiment: "Retain conservation and dissipation while replacing the continuous carrier by a graph and rebuilding graph closure.",
+        targetLatex: "\\partial_t u=\\kappa\\nabla^2u\\quad\\longrightarrow\\quad\\dot{\\mathbf u}=-\\kappa L_G\\mathbf u",
+        control: "Adjacency-only evolution tests conservation; sign-reversed evolution tests dissipation."
+      },
+      reviewer: {
+        verdict: "Operational transfer contract complete",
+        severity: "pass",
+        requiredFix: "For a continuum-discretization claim, additionally report operator-consistency convergence under mesh refinement.",
+        passCondition: "Conservation, dissipation and, where claimed, continuum consistency must pass independently."
+      }
+    };
+  }
 
   if (polymerStress && stretch && microstructure) {
     const macroIds = equationsWith(nodes, [/\\sigma\s*_\s*\{?\s*true\s*\}?/i, /\\lambda/i, /C_1|C_2|G\s*=/]);
@@ -776,8 +815,8 @@ function buildOutcome(nodes, chain, aggregateRoutes, aggregateSubstrates, inputT
         title: "Missing equation: microstructure -> modulus",
         claim: "The chain defines stretch, true stress and modulus-like quantities, and it separately defines orientation or stem-length statistics. The missing formal step is the constitutive bridge that makes the modulus depend on those microscopic variables.",
         candidateLatex:
-          "C_1(T,bpc,\\lambda)=C_{1,0}+a_S S(\\lambda,T)+a_l\\langle l\\rangle(\\lambda,T)\n" +
-          "C_2(T,bpc,\\lambda)=C_{2,0}+b_S S(\\lambda,T)+b_l\\langle l\\rangle(\\lambda,T)\n" +
+          "C_1(T,bpc,\\lambda)=C_{1,0}+a_S S(\\lambda,T)+a_l\\cdot Lstem(\\lambda,T)\n" +
+          "C_2(T,bpc,\\lambda)=C_{2,0}+b_S S(\\lambda,T)+b_l\\cdot Lstem(\\lambda,T)\n" +
           "G(\\lambda,T,bpc)=2\\left(C_1+\\frac{C_2}{\\lambda}\\right)",
         why: `Macro equations ${macroIds.slice(0, 4).join(", ") || "detected"} and microstructure equations ${microIds.slice(0, 4).join(", ") || "detected"} are present, but the bridge between them is not explicit.`,
         falsifier: "Prepare samples with the same stretch, temperature and crosslink density but different orientation or stem-length distributions. If the fitted C1, C2 or G do not change, the proposed microscopic mechanism is descriptive rather than causal."
@@ -933,7 +972,88 @@ function mechanismStatement(nodes, aggregateRoutes, aggregateSubstrates) {
   const substrateNames = topScores(aggregateSubstrates, SUBSTRATES, 2).filter((item) => item.score > 0).map((item) => item.label);
   const dominant = routeNames.length ? routeNames.join(", ") : "a weakly classified route mixture";
   const substrate = substrateNames.length ? substrateNames.join(" and ") : "an unspecified substrate";
-  return `The equation sequence is organized primarily by ${dominant}. The apparent substrate is ${substrate}. Read as a construction, the chain asks which role is preserved across adjacent formulas, which role is newly added, and which missing role would make the mechanism testable.`;
+  return `The displayed equations build a ${dominant} construction on ${substrate}. The X-ray reads the fragment as a sequence of formal moves and asks which condition, bridge or readout must be added before the construction becomes testable.`;
+}
+
+function buildHiddenConstruction(nodes, aggregateRoutes, aggregateSubstrates, nextMoves, outcome) {
+  const routeNames = topScores(aggregateRoutes, ROUTES, 3).filter((item) => item.score > 0).map((item) => item.label);
+  const substrateNames = topScores(aggregateSubstrates, SUBSTRATES, 2).filter((item) => item.score > 0).map((item) => item.label);
+  const missing = outcome?.missingEquation || {};
+  const topMove = nextMoves[0] || null;
+  const title = `${missing.title || ""}`.toLowerCase();
+  const routeText = routeNames.length ? routeNames.join(" + ") : "weakly classified equation chain";
+  const substrateText = substrateNames.length ? substrateNames.join(" / ") : "substrate not explicit";
+  let bias = {
+    label: "falsifier debt",
+    claim: "The fragment has formal structure, but the breaking test is not explicit.",
+    visual: "result implied before failure condition is stated"
+  };
+  let missingRole = "explicit falsifier or residual";
+  let readerLine = "The useful next step is to state what perturbation would break the mechanism while leaving superficial notation intact.";
+
+  if (title.includes("no formal gap")) {
+    bias = {
+      label: "completed transfer contract",
+      claim: "The operation is re-realized on another carrier while conservation and dissipation remain explicit.",
+      visual: "continuous carrier -> graph carrier"
+    };
+    missingRole = "none in the stated operational contract";
+    readerLine = "If the graph is claimed as a discretization of the continuum, mesh-refinement consistency remains an additional test.";
+  } else if (title.includes("hilbert") || title.includes("domain") || title.includes("normalization")) {
+    bias = {
+      label: "domain invisibility",
+      claim: "The text writes the operator as if its domain were obvious, but the spectrum and probabilities depend on the admissible space.",
+      visual: "same operator symbol, different legal spectra"
+    };
+    missingRole = "admissible space / operator domain";
+    readerLine = "The next formal step is not another evolution law; it is the condition that makes the existing operator well defined.";
+  } else if (title.includes("microstructure") || title.includes("bridge")) {
+    bias = {
+      label: "bridge invisibility",
+      claim: "The text shows macroscopic response and microscopic descriptors, but does not write the equation that makes one determine the other.",
+      visual: "two equation islands with no constitutive bridge"
+    };
+    missingRole = "constitutive bridge";
+    readerLine = "The next formal step is the bridge from hidden state to measured response, not another curve fit.";
+  } else if (title.includes("closure")) {
+    bias = {
+      label: "closure debt",
+      claim: "The text transports or evolves a quantity before specifying the law that selects admissible currents or trajectories.",
+      visual: "motion present, admissibility absent"
+    };
+    missingRole = "closure / conservation law";
+    readerLine = "The next formal step is the equation that rules out the many trajectories compatible with the same transport notation.";
+  } else if (title.includes("readout")) {
+    bias = {
+      label: "readout debt",
+      claim: "The text builds an operator or spectrum before specifying the measured output or residual that makes it observable.",
+      visual: "modes present, measurement absent"
+    };
+    missingRole = "readout / current checkpoint";
+    readerLine = "The next formal step is the map from formal modes to measured quantities.";
+  } else if (title.includes("boundary")) {
+    bias = {
+      label: "boundary invisibility",
+      claim: "The text states a closure relation but leaves the domain, interface or weak form that realizes it implicit.",
+      visual: "law present, realization hidden"
+    };
+    missingRole = "boundary or weak-form realization";
+    readerLine = "The next formal step is to state the realization layer under which the closure has the claimed meaning.";
+  }
+
+  return {
+    title: "Hidden construction fingerprint",
+    present: routeText,
+    substrate: substrateText,
+    biasLabel: bias.label,
+    biasClaim: bias.claim,
+    biasVisual: bias.visual,
+    missingRole,
+    nextMove: topMove ? topMove.token : "no_next_move",
+    nextMoveProbability: topMove ? topMove.probability : 0,
+    readerLine,
+    equationNodes: nodes.length
+  };
 }
 
 export function analyzeText(inputText, options = {}) {
@@ -953,6 +1073,7 @@ export function analyzeText(inputText, options = {}) {
   const atlasState = inferAtlasState(equations, chain, aggregateRoutes, aggregateSubstrates);
   const outcome = buildOutcome(equations, chain, aggregateRoutes, aggregateSubstrates, inputText);
   const shareCard = buildShareCard(equations, chain, aggregateRoutes, aggregateSubstrates, nextMoves, outcome);
+  const hiddenConstruction = buildHiddenConstruction(equations, aggregateRoutes, aggregateSubstrates, nextMoves, outcome);
   const analysis = {
     schema: "equation_xray_v1",
     sourceName: options.sourceName || "pasted input",
@@ -966,6 +1087,7 @@ export function analyzeText(inputText, options = {}) {
     atlasState,
     outcome,
     shareCard,
+    hiddenConstruction,
     mechanism: mechanismStatement(equations, aggregateRoutes, aggregateSubstrates)
   };
   analysis.markdown = renderMarkdown(analysis);
@@ -994,8 +1116,9 @@ function buildShareCard(nodes, chain, aggregateRoutes, aggregateSubstrates, next
     : "No next grammar move was predicted.";
   const equationIds = nodes.map((node) => node.id).join(", ");
   const chainTokens = chain.slice(0, 4).map((move) => move.token).join(" -> ");
+  const completeTransfer = missingTitle.toLowerCase().includes("no formal gap");
   return {
-    headline: "Find the missing equation.",
+    headline: completeTransfer ? "This mechanism changes carrier." : "This theory makes a hidden jump.",
     title: missingTitle,
     present,
     substrate,
@@ -1006,7 +1129,7 @@ function buildShareCard(nodes, chain, aggregateRoutes, aggregateSubstrates, next
     sourceTrace: equationIds ? `Detected equation nodes: ${equationIds}.` : "No clean equation nodes detected.",
     chainTrace: chainTokens ? `Observed moves: ${chainTokens}.` : "No adjacent morphism chain detected.",
     falsifier: outcome?.missingEquation?.falsifier || "",
-    scope: "Formal completion candidate, not a claim of physical equivalence."
+    scope: "Deterministic equation-chain audit; the prediction is a formal test target."
   };
 }
 

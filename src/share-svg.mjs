@@ -1,71 +1,93 @@
 export function buildShareSvg(analysis) {
   const share = analysis.shareCard;
+  const hidden = analysis.hiddenConstruction || {};
   const width = 1600;
   const height = 900;
   const prediction = predictionType(analysis);
-  const missing = share.missing || "missing equation";
-  const present = share.present || "equation-chain mechanism";
+  const visible = publicVisibleEquations(hidden, share);
+  const jump = publicHiddenJump(hidden, share);
+  const hiddenClaim = hidden.biasClaim || shareEvidence(share.evidence);
+  const headline = share.headline || "This theory makes a hidden jump.";
   const formulaRows = share.nextEquation
     .split(/\n+/)
     .map((line) => latexToShareFormulaParts(line))
     .filter(Boolean)
     .slice(0, 5);
-  const evidence = shareEvidence(share.evidence);
   const falsifier = shareFalsifier(share.falsifier || analysis.outcome?.missingEquation?.falsifier || "");
-  const grammar = shareGrammar(share.grammarEvidence);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <rect width="${width}" height="${height}" fill="#f7f7f4"/>
   <rect x="44" y="44" width="1512" height="812" rx="30" fill="#ffffff" stroke="#d7d7d0" stroke-width="2"/>
-  <rect x="44" y="44" width="18" height="812" rx="9" fill="#2457a6"/>
+  <rect x="44" y="44" width="18" height="812" rx="9" fill="#aa2e2e"/>
 
   <text x="94" y="96" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="900" letter-spacing="4">EQUATION X-RAY</text>
-  <text x="94" y="148" fill="#171717" font-family="Inter, system-ui, sans-serif" font-size="56" font-weight="950">This paper has a missing formula.</text>
-  <rect x="1040" y="78" width="390" height="48" rx="24" fill="#eef4ff" stroke="#b9cbea"/>
-  <text x="1066" y="110" fill="#2457a6" font-family="Inter, system-ui, sans-serif" font-size="19" font-weight="900">NOT A SUMMARY: EQUATION-CHAIN TEST</text>
+  <text x="94" y="148" fill="#171717" font-family="Inter, system-ui, sans-serif" font-size="55" font-weight="950">${escapeXml(headline)}</text>
 
-  <rect x="94" y="204" width="610" height="116" rx="18" fill="#fff8f6" stroke="#edc3c0"/>
-  <text x="122" y="244" fill="#aa2e2e" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="900" letter-spacing="2">MISSING</text>
-  ${svgWrappedText(missing, 122, 286, 34, 3, 530, "#171717", 42, 900)}
+  <rect x="94" y="204" width="610" height="126" rx="18" fill="#f8fbff" stroke="#cfdbef"/>
+  <text x="122" y="244" fill="#2457a6" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="900" letter-spacing="2">WHAT THE EQUATIONS SHOW</text>
+  ${svgWrappedText(visible, 122, 286, 31, 3, 530, "#171717", 31, 850)}
 
-  <rect x="94" y="356" width="610" height="156" rx="18" fill="#f8fbff" stroke="#cfdbef"/>
-  <text x="122" y="396" fill="#2457a6" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="900" letter-spacing="2">PRESENT MECHANISM</text>
-  ${svgWrappedText(present, 122, 438, 28, 4, 530, "#171717", 30, 820)}
+  <rect x="94" y="362" width="610" height="154" rx="18" fill="#fff8f6" stroke="#edc3c0"/>
+  <text x="122" y="402" fill="#aa2e2e" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="900" letter-spacing="2">THE HIDDEN JUMP</text>
+  ${svgWrappedText(jump, 122, 448, 36, 2, 530, "#aa2e2e", 38, 950)}
 
-  <rect x="94" y="548" width="610" height="178" rx="18" fill="#fbfbf8" stroke="#d7d7d0"/>
-  <text x="122" y="588" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="900" letter-spacing="2">WHY THIS IS A REAL TEST</text>
-  ${svgWrappedText(evidence, 122, 630, 25, 3, 530, "#171717", 25, 650)}
-  ${svgWrappedText(grammar, 122, 704, 23, 2, 530, "#666a70", 21, 700)}
+  <rect x="94" y="550" width="610" height="176" rx="18" fill="#fbfbf8" stroke="#d7d7d0"/>
+  <text x="122" y="590" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="900" letter-spacing="2">WHY IT MATTERS</text>
+  ${svgWrappedText(hiddenClaim, 122, 632, 25, 3, 530, "#171717", 24, 650)}
+  <text x="122" y="708" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="20">A mechanism needs the bridge, not only the endpoints.</text>
 
   <rect x="760" y="204" width="702" height="402" rx="22" fill="#fffaf1" stroke="#d4b475" stroke-width="2"/>
-  <text x="796" y="250" fill="#8a641b" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="900" letter-spacing="2">PREDICTED NEXT FORMULA</text>
-  <rect x="1200" y="222" width="218" height="42" rx="21" fill="#ffffff" stroke="#d4b475"/>
-  <text x="1222" y="249" fill="#8a641b" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="900">${escapeXml(prediction)}</text>
+  <text x="796" y="250" fill="#8a641b" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="900" letter-spacing="2">EQUATION TO ADD</text>
+  <rect x="1192" y="222" width="226" height="42" rx="21" fill="#ffffff" stroke="#d4b475"/>
+  <text x="1216" y="249" fill="#8a641b" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="900">${escapeXml(prediction)}</text>
   ${formulaRows.map((parts, index) => `
-    <rect x="796" y="${288 + index * 58}" width="630" height="42" rx="10" fill="#ffffff" stroke="#e3d4b0"/>
-    <text x="818" y="${316 + index * 58}" fill="#171717" font-family="STIX Two Math, Cambria Math, Times New Roman, serif" font-size="26">${svgFormulaParts(parts)}</text>
+    <rect x="796" y="${288 + index * 64}" width="630" height="48" rx="10" fill="#ffffff" stroke="#e3d4b0"/>
+    <text x="818" y="${320 + index * 64}" fill="#171717" font-family="STIX Two Math, Cambria Math, Times New Roman, serif" font-size="24">${svgFormulaParts(parts)}</text>
   `).join("")}
-  <text x="796" y="562" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="20">Typed prediction, not free-form text generation.</text>
+  <text x="796" y="568" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="20">Candidate bridge from the detected equation-chain gap.</text>
 
   <rect x="760" y="642" width="702" height="84" rx="18" fill="#f7faf8" stroke="#bfd6ca"/>
-  <text x="796" y="678" fill="#276b51" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="900" letter-spacing="2">FALSIFIER</text>
+  <text x="796" y="678" fill="#276b51" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="900" letter-spacing="2">HOW TO BREAK IT</text>
   ${svgWrappedText(falsifier || "Change the missing condition; the predicted readout should change if the mechanism is real.", 796, 710, 24, 2, 620, "#171717", 21, 700)}
 
   <line x1="94" y1="780" x2="1462" y2="780" stroke="#d7d7d0"/>
-  <text x="94" y="824" fill="#171717" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="800">Paste equations → reveal the typed next step in the mechanism.</text>
-  <text x="1045" y="824" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="21">synthetix-institute.github.io/equation-xray</text>
+  <text x="94" y="824" fill="#171717" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="800">Upload equations → find the jump the text relies on.</text>
+  <text x="1045" y="824" fill="#666a70" font-family="Inter, system-ui, sans-serif" font-size="21">equation-x.synthetix.institute</text>
 </svg>`;
 }
 
 function predictionType(analysis) {
   const title = `${analysis?.outcome?.missingEquation?.title || ""}`.toLowerCase();
   if (title.includes("formal gap") || title.includes("hilbert") || title.includes("domain") || title.includes("normalization")) {
-    return "Formal obligation";
+    return "Domain condition";
   }
-  if (title.includes("bridge") || title.includes("closure") || title.includes("microstructure")) {
-    return "Closure candidate";
+  if (title.includes("microstructure") || title.includes("bridge")) {
+    return "Bridge equation";
   }
-  return "Testable candidate";
+  if (title.includes("closure")) return "Closure equation";
+  if (title.includes("readout")) return "Readout rule";
+  if (title.includes("boundary")) return "Boundary condition";
+  return "Test equation";
+}
+
+function publicVisibleEquations(hidden, share) {
+  const label = `${hidden?.biasLabel || ""}`.toLowerCase();
+  if (label.includes("bridge")) return "macroscopic response + microscopic descriptors";
+  if (label.includes("domain")) return "state evolution + energy spectrum + probability readout";
+  if (label.includes("closure")) return "motion or flux before the selecting law";
+  if (label.includes("readout")) return "operator or modes before measured output";
+  if (label.includes("boundary")) return "closure relation before realization";
+  return share.present || "equation-chain mechanism";
+}
+
+function publicHiddenJump(hidden, share) {
+  const label = `${hidden?.biasLabel || ""}`.toLowerCase();
+  if (label.includes("bridge")) return "microstructure → material response";
+  if (label.includes("domain")) return "operator symbol → legal spectrum";
+  if (label.includes("closure")) return "motion → admissible current";
+  if (label.includes("readout")) return "operator → measurement";
+  if (label.includes("boundary")) return "closure → realized boundary";
+  return hidden?.missingRole || share.missing || "missing formal dependency";
 }
 
 function firstSentence(value) {
@@ -131,6 +153,7 @@ export function latexToShareFormula(value) {
       return part.text;
     })
     .join("")
+    .replace(/⟨\s*l\s*⟩/g, "l̄")
     .replace(/⟨\s+/g, "⟨")
     .replace(/\s+⟩/g, "⟩")
     .replace(/·\s+/g, "·");
@@ -148,11 +171,14 @@ function preprocessLatexFormula(value) {
     .replace(/\\text\s*\{([^}]*)\}/g, "$1")
     .replace(/\\mathrm\s*\{([^}]*)\}/g, "$1")
     .replace(/\\mathcal\s*\{H\}/g, "ℋ")
+    .replace(/\\mathcal\s+H/g, "ℋ")
+    .replace(/mathcal\s+H/g, "ℋ")
     .replace(/\\mathcal\s*\{([^}]*)\}/g, "$1")
     .replace(/\\lVert/g, "∥")
     .replace(/\\rVert/g, "∥")
     .replace(/\\langle/g, "⟨")
     .replace(/\\rangle/g, "⟩")
+    .replace(/⟨\s*l\s*⟩/g, "l̄")
     .replace(/\\lambda/g, "λ")
     .replace(/\\psi/g, "ψ")
     .replace(/\\phi/g, "φ")
@@ -171,6 +197,7 @@ function preprocessLatexFormula(value) {
 function normalizeFormulaToken(value) {
   return preprocessLatexFormula(value)
     .replace(/\\/g, "")
+    .replace(/⟨\s*l\s*⟩/g, "l̄")
     .replace(/⟨\s+/g, "⟨")
     .replace(/\s+⟩/g, "⟩")
     .replace(/·\s+/g, "·")
