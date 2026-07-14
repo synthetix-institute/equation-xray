@@ -5,8 +5,8 @@
 Equation X-Ray is a standalone public demo for mechanism-native scientific AI.
 It reads equations as ordered construction moves: transport, closure, spectral/operator structure, boundary
 realization, incompatibility, and discrete protocol. The public result is a
-Book X-Ray: a compact visual diagnosis of what a paper, chapter or derivation
-leaves implicit.
+Mechanism X-Ray: a compact visual diagnosis of what an equation chain leaves
+implicit, whether that chain comes from a paper, chapter, derivation or model.
 
 Public demo URL after GitHub Pages is enabled:
 
@@ -40,7 +40,7 @@ autoencoder neighborhoods, morphism-chain decoder probabilities, and source
 witnesses without changing the UI.
 
 
-## Book X-Ray Mode
+## Mechanism X-Ray Mode
 
 The main public artifact is a shareable X-Ray card:
 

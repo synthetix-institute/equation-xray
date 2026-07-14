@@ -191,7 +191,7 @@ function renderHiddenConstruction(analysis) {
   const probability = Math.round((hidden.nextMoveProbability || 0) * 100);
   target.innerHTML = `
     <article class="hidden-card">
-      <p class="outcome-label">Book X-Ray finding</p>
+      <p class="outcome-label">Mechanism X-Ray finding</p>
       <h3>${escapeHtml(hidden.biasLabel)}</h3>
       <p>${escapeHtml(hidden.biasClaim)}</p>
       <div class="hidden-grid">
