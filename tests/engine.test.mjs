@@ -32,6 +32,10 @@ assert.ok(first.activeSubstrates.includes("inner_product_space"));
 const second = scoreEquation(equations[1].formula, 1);
 assert.equal(second.topRoute, "spectral_operator");
 
+const bornReadout = scoreEquation(equations[2].formula, 2);
+assert.equal(bornReadout.activeRoutes.includes("discrete_protocol"), false);
+assert.ok(bornReadout.activeSubstrates.includes("probability_space"));
+
 const move = compareEquations(first, second);
 assert.ok([
   "add_spectral_operator",
@@ -42,6 +46,7 @@ assert.ok([
 
 const analysis = analyzeText(schrodinger, { sourceName: "test" });
 assert.equal(analysis.equationCount, 3);
+assert.equal(analysis.aggregateRoutes.discrete_protocol, 0);
 assert.equal(analysis.outcome.missingEquation.title, "Formal gap: admissible Hilbert space");
 assert.equal(analysis.outcome.reviewer.verdict, "Needs domain and normalization statement");
 assert.equal(analysis.shareCard.headline, "This theory makes a hidden jump.");

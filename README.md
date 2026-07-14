@@ -26,6 +26,12 @@ The output is a mechanism audit plus a concrete construction target:
 - what breaking test would make the dependency causal rather than decorative;
 - what a reviewer should ask the authors to add.
 
+The six route rows are fixed, overlapping evidence axes rather than six
+mutually exclusive classes. Their values are deterministic cue strengths
+averaged over the extracted equations; they are not probabilities. A zero
+means that the public rule set found no supporting cue in the supplied
+fragment.
+
 This repository intentionally ships a lightweight deterministic engine. It does
 not include the private Hyperion fingerprint database, the trained autoencoder,
 or the trained morphism-chain decoder. The public contract is stable: a full

@@ -106,8 +106,6 @@ export const ROUTES = [
       /\\Delta\s*t/i,
       /\balgorithm|protocol|iteration|step\b/i,
       /\\arg\s*\\max|\\arg\s*\\min|argmax|argmin/i,
-      /\\prod|\\sum/,
-      /\bP\s*\(|\\Pr\b|\\mathbb\s*\{?\s*P\s*\}?/i,
       /\bBayes|posterior|prior|update\b/i
     ]
   }
